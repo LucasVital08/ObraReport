@@ -10,8 +10,8 @@ import { ROLE_LABELS } from "@/lib/types";
 import {
   LayoutDashboard, Building2, FileText, Images, ListChecks, Users, Clock,
   Package, Wrench, ClipboardCheck, AlertTriangle, Wallet, BarChart3,
-  Contact as ContactIcon, FolderOpen, CreditCard, Settings, Shield,
-  Plus, Mic, Menu, X, LogOut, Moon, Sun, Sparkles,
+  Contact as ContactIcon, CreditCard, Settings, Shield,
+  Plus, Menu, X, LogOut, Moon, Sun, Sparkles,
 } from "lucide-react";
 
 interface NavItem { href: string; label: string; icon: React.ElementType; }

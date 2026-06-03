@@ -4,7 +4,6 @@ import React from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Modal, Field, Input, Select, EmptyState } from "@/components/ui";
-import { MaterialStatusBadge } from "@/components/status";
 import { formatBRL } from "@/lib/utils";
 import { type Material, type MaterialStatus } from "@/lib/types";
 import { Plus, Package, Trash2 } from "lucide-react";

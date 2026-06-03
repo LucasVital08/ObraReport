@@ -3,7 +3,7 @@
 import React from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
-import { Card, CardHeader, Button, Modal, Field, Input, Textarea, Select, EmptyState } from "@/components/ui";
+import { Card, Button, Modal, Field, Input, Textarea, Select, EmptyState } from "@/components/ui";
 import { IncidentStatusBadge, SeverityBadge } from "@/components/status";
 import { formatDateBR } from "@/lib/utils";
 import { type Incident, type IncidentSeverity, type IncidentStatus } from "@/lib/types";

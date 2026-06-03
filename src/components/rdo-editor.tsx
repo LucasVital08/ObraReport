@@ -7,7 +7,7 @@ import { evaluateCompleteness } from "@/lib/ai/engine";
 import { Card, CardHeader, Field, Input, Textarea, Select, Button, Badge, Progress } from "@/components/ui";
 import { uid, colorFromString } from "@/lib/utils";
 import {
-  Plus, X, Clock, CloudSun, Users, Hammer, Package, Wrench, AlertTriangle,
+  Plus, X, Clock, Users, Hammer, Package, Wrench, AlertTriangle,
   MessageSquare, ListTodo, FileText, Camera, CheckCircle2, Circle, Sparkles,
 } from "lucide-react";
 

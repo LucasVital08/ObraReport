@@ -250,7 +250,10 @@ function SignModal({ open, onClose, onSign, defaultName }: {
   const [dataUrl, setDataUrl] = React.useState("");
   const [accepted, setAccepted] = React.useState(false);
 
-  React.useEffect(() => { if (role === "supervisor") setName(defaultName); }, [role, defaultName]);
+  function changeRole(r: Signature["role"]) {
+    setRole(r);
+    if (r === "supervisor" && !name) setName(defaultName);
+  }
 
   return (
     <Modal open={open} onClose={onClose} title="Assinatura eletrônica" wide
@@ -264,7 +267,7 @@ function SignModal({ open, onClose, onSign, defaultName }: {
       }>
       <div className="space-y-4">
         <Field label="Quem está assinando">
-          <Select value={role} onChange={(e) => setRole(e.target.value as Signature["role"])}>
+          <Select value={role} onChange={(e) => changeRole(e.target.value as Signature["role"])}>
             <option value="cliente">Cliente / Contratante</option>
             <option value="supervisor">Supervisor / Responsável</option>
             <option value="responsavel">Responsável técnico</option>

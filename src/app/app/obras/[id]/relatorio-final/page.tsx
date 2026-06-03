@@ -26,13 +26,18 @@ export default function RelatorioFinalPage() {
     includeExpenses: true, includeVideos: true, includeInternalOccurrences: true, onlySelectedPhotos: false,
   });
 
-  if (!project) return <EmptyState title="Obra não encontrada" action={<Button onClick={() => router.push("/app/obras")}>Voltar</Button>} />;
+  const ai = React.useMemo(
+    () => (project ? buildFinalReport(project, reports) : null),
+    [project, reports],
+  );
 
-  const ai = React.useMemo(() => buildFinalReport(project, reports), [project, reports]);
+  if (!project || !ai) return <EmptyState title="Obra não encontrada" action={<Button onClick={() => router.push("/app/obras")}>Voltar</Button>} />;
+
   const allPhotos = reports.flatMap((r) => r.media).filter((m) => m.kind === "photo");
   const totalExpenses = ai.gastos_resumidos.reduce((a, g) => a + g.total, 0);
 
   function generate() {
+    if (!project || !ai) return;
     saveFinalReport({
       projectId: project!.id, generatedAt: new Date().toISOString(),
       executiveSummary: ai.resumo_geral_da_obra, technicalConclusion: ai.conclusao_tecnica,

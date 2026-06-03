@@ -75,7 +75,7 @@ export default function TarefasPage() {
         </div>
       )}
 
-      <TaskModal open={open} onClose={() => setOpen(false)} projects={projects} defaultProject={filter}
+      <TaskModal key={filter} open={open} onClose={() => setOpen(false)} projects={projects} defaultProject={filter}
         onSave={(t) => { addTask(t); setOpen(false); }} />
     </div>
   );
@@ -91,8 +91,6 @@ function TaskModal({ open, onClose, onSave, projects, defaultProject }: {
   const [priority, setPriority] = React.useState<Priority>("media");
   const [projectId, setProjectId] = React.useState(defaultProject || projects[0]?.id || "");
   const [dueDate, setDueDate] = React.useState(todayISO());
-
-  React.useEffect(() => { if (defaultProject) setProjectId(defaultProject); }, [defaultProject]);
 
   return (
     <Modal open={open} onClose={onClose} title="Nova tarefa" wide

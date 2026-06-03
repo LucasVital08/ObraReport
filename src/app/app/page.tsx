@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { Card, CardHeader, Stat, Button, EmptyState, Badge } from "@/components/ui";
+import { Card, CardHeader, Stat, Button, EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/brand";
 import { ProjectStatusBadge, RdoStatusBadge } from "@/components/status";
 import { formatBRL, formatDateBR, todayISO } from "@/lib/utils";

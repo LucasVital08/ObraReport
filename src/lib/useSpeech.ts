@@ -19,8 +19,17 @@ interface SpeechRecognitionLike {
   onend: (() => void) | null;
 }
 
+type SpeechCtorWindow = {
+  SpeechRecognition?: new () => SpeechRecognitionLike;
+  webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+};
+
 export function useSpeech() {
-  const [supported, setSupported] = React.useState(false);
+  const [supported] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    const w = window as unknown as SpeechCtorWindow;
+    return !!(w.SpeechRecognition || w.webkitSpeechRecognition);
+  });
   const [listening, setListening] = React.useState(false);
   const [transcript, setTranscript] = React.useState("");
   const [interim, setInterim] = React.useState("");
@@ -28,13 +37,9 @@ export function useSpeech() {
   const finalRef = React.useRef("");
 
   React.useEffect(() => {
-    const w = window as unknown as {
-      SpeechRecognition?: new () => SpeechRecognitionLike;
-      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-    };
+    const w = window as unknown as SpeechCtorWindow;
     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (Ctor) {
-      setSupported(true);
       const rec = new Ctor();
       rec.lang = "pt-BR";
       rec.continuous = true;

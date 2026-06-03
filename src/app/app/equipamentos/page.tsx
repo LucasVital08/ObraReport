@@ -4,7 +4,6 @@ import React from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Modal, Field, Input, Select, EmptyState } from "@/components/ui";
-import { EquipmentStatusBadge } from "@/components/status";
 import { type Equipment, type EquipmentStatus } from "@/lib/types";
 import { Plus, Wrench, Trash2 } from "lucide-react";
 

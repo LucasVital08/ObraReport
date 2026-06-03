@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
 import { Card, Button, EmptyState, Badge } from "@/components/ui";
 import { ProjectStatusBadge } from "@/components/status";
-import { formatBRL, formatDateBR } from "@/lib/utils";
+import { formatBRL } from "@/lib/utils";
 import { Building2, Plus, FileText, MapPin, User } from "lucide-react";
 
 export default function ObrasPage() {

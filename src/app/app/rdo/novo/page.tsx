@@ -37,7 +37,6 @@ function NovoRdoInner() {
   const projects = useStore((s) => s.projects);
   const reports = useStore((s) => s.reports);
   const team = useStore((s) => s.team);
-  const company = useStore((s) => s.company);
   const user = useStore((s) => s.user);
   const addReport = useStore((s) => s.addReport);
   const { show, node } = useToast();
@@ -267,10 +266,17 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
   const current = QUESTIONS[idx];
   const progress = ((idx + 1) / QUESTIONS.length) * 100;
 
-  React.useEffect(() => {
-    if (speech.transcript) setAnswers((a) => ({ ...a, [current.key]: (a[current.key] ? a[current.key] + " " : "") + speech.transcript }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speech.transcript]);
+  function toggleMic() {
+    if (speech.listening) {
+      speech.stop();
+      const t = speech.transcript.trim();
+      if (t) setAnswers((a) => ({ ...a, [current.key]: (a[current.key] ? a[current.key] + " " : "") + t }));
+      speech.reset();
+    } else {
+      speech.reset();
+      speech.start();
+    }
+  }
 
   function next() {
     if (idx < QUESTIONS.length - 1) { setIdx(idx + 1); speech.reset(); }
@@ -305,7 +311,7 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
           <Textarea value={answers[current.key] || ""} onChange={(e) => setAnswers({ ...answers, [current.key]: e.target.value })}
             placeholder="Sua resposta (texto ou voz)" className="flex-1" />
           {speech.supported && (
-            <button onClick={() => (speech.listening ? speech.stop() : speech.start())}
+            <button onClick={toggleMic}
               className={`h-11 w-11 shrink-0 rounded-xl flex items-center justify-center text-white ${speech.listening ? "bg-danger animate-pulse-ring" : "bg-brand"}`}>
               {speech.listening ? <Square size={18} /> : <Mic size={20} />}
             </button>

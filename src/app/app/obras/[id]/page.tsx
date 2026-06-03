@@ -7,15 +7,15 @@ import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Badge, Tabs, EmptyState, Stat, Select } from "@/components/ui";
 import {
-  ProjectStatusBadge, RdoStatusBadge, TaskStatusBadge, MaterialStatusBadge,
+  RdoStatusBadge, TaskStatusBadge, MaterialStatusBadge,
   EquipmentStatusBadge, IncidentStatusBadge,
 } from "@/components/status";
 import { Avatar } from "@/components/brand";
 import { formatBRL, formatDateBR, diffDays } from "@/lib/utils";
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from "@/lib/types";
 import {
-  Building2, Plus, FileText, MapPin, User, Calendar, Wallet, Users, Camera,
-  Package, Wrench, AlertTriangle, ClipboardCheck, ListChecks, FileCheck2, Clock,
+  Building2, Plus, FileText, MapPin, User, Calendar, Wallet, Camera,
+  AlertTriangle, ListChecks, FileCheck2, Clock,
 } from "lucide-react";
 
 export default function ObraDetailPage() {

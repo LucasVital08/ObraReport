@@ -6,7 +6,7 @@ import { createSeedData, type AppData } from "@/lib/seed";
 import { nowISO, uid } from "@/lib/utils";
 import type {
   Checklist, Company, Contact, DailyReport, Equipment, Expense, Incident,
-  Material, Project, Task, TeamMember, TimeCard, User, FinalReport, PlanId,
+  Material, Project, Task, TeamMember, TimeCard, FinalReport, PlanId,
 } from "@/lib/types";
 
 interface State extends AppData {
@@ -100,7 +100,7 @@ function emptyData(): AppData {
 
 export const useStore = create<State>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...emptyData(),
       finalReports: [],
       isAuthenticated: false,
