@@ -366,6 +366,18 @@ export const EXPENSE_CATEGORIES = [
   "outros",
 ] as const;
 
+// ---- Documentos do projeto (importados, ex.: PDFs prontos) ----
+export interface ProjectDocument {
+  id: ID;
+  companyId: ID;
+  projectId: ID;
+  name: string;
+  mimeType: string;
+  size: number; // bytes
+  dataUrl: string; // conteúdo em base64 (data URL)
+  uploadedAt: string;
+}
+
 // ---- Contatos ----
 export interface Contact {
   id: ID;

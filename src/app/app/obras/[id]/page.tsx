@@ -12,10 +12,10 @@ import {
 } from "@/components/status";
 import { Avatar } from "@/components/brand";
 import { formatBRL, formatDateBR, diffDays } from "@/lib/utils";
-import { PROJECT_STATUS_LABELS, type ProjectStatus } from "@/lib/types";
+import { PROJECT_STATUS_LABELS, type ProjectStatus, type ProjectDocument } from "@/lib/types";
 import {
   Building2, Plus, FileText, MapPin, User, Calendar, Wallet, Camera,
-  AlertTriangle, ListChecks, FileCheck2, Clock,
+  AlertTriangle, ListChecks, FileCheck2, Clock, Eye, Download, Trash2,
 } from "lucide-react";
 
 export default function ObraDetailPage() {
@@ -31,6 +31,7 @@ export default function ObraDetailPage() {
   const expenses = useStore((s) => s.expenses.filter((e) => e.projectId === id));
   const checklists = useStore((s) => s.checklists.filter((c) => c.projectId === id));
   const incidents = useStore((s) => s.incidents.filter((i) => i.projectId === id));
+  const documents = useStore((s) => s.documents.filter((d) => d.projectId === id));
   const [tab, setTab] = React.useState("visao");
 
   if (!project) return <EmptyState title="Obra não encontrada" action={<Button onClick={() => router.push("/app/obras")}>Voltar</Button>} />;
@@ -49,6 +50,7 @@ export default function ObraDetailPage() {
     { id: "gastos", label: "Gastos", count: expenses.length },
     { id: "checklists", label: "Checklists", count: checklists.length },
     { id: "ocorrencias", label: "Ocorrências", count: incidents.length },
+    { id: "documentos", label: "Documentos", count: documents.length },
     { id: "final", label: "Relatório final" },
   ];
 
@@ -158,7 +160,66 @@ export default function ObraDetailPage() {
           </Link>
         </Card>
       )}
+      {tab === "documentos" && <DocumentsTab projectId={project.id} documents={documents} />}
     </div>
+  );
+}
+
+function DocumentsTab({ projectId, documents }: { projectId: string; documents: ProjectDocument[] }) {
+  const addDocument = useStore((s) => s.addDocument);
+  const deleteDocument = useStore((s) => s.deleteDocument);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const [error, setError] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    setError("");
+    files.forEach((file) => {
+      setBusy(true);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setBusy(false);
+        const res = addDocument({
+          projectId, name: file.name, mimeType: file.type || "application/octet-stream",
+          size: file.size, dataUrl: String(reader.result), uploadedAt: new Date().toISOString(),
+        });
+        if (!res.ok) setError(res.error || "Erro ao importar.");
+      };
+      reader.onerror = () => { setBusy(false); setError("Falha ao ler o arquivo."); };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  }
+
+  return (
+    <Card>
+      <CardHeader title="Documentos da obra" icon={<FileText size={18} />} subtitle="Importe PDFs e arquivos prontos (contratos, projetos, comprovantes)"
+        action={<Button size="sm" onClick={() => fileRef.current?.click()}><Plus size={14} /> Importar</Button>} />
+      <input ref={fileRef} type="file" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx" multiple className="hidden" onChange={onFiles} />
+      {error && <div className="mx-4 mt-3 rounded-lg bg-danger-soft text-danger text-sm px-3 py-2">{error}</div>}
+      {busy && <div className="px-4 pt-3 text-sm text-muted">Importando…</div>}
+      {documents.length === 0 ? (
+        <EmptyState icon={<FileText size={32} />} title="Nenhum documento importado"
+          description="Toque em Importar para anexar um PDF que você já tem."
+          action={<Button onClick={() => fileRef.current?.click()}><Plus size={16} /> Importar PDF</Button>} />
+      ) : (
+        <div className="divide-y divide-border">
+          {documents.map((d) => (
+            <div key={d.id} className="flex items-center gap-3 p-3.5">
+              <div className="h-10 w-10 rounded-xl bg-brand-soft text-brand-dark flex items-center justify-center shrink-0"><FileText size={18} /></div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm truncate">{d.name}</p>
+                <p className="text-xs text-muted">{(d.size / 1024).toFixed(0)} KB • {formatDateBR(d.uploadedAt)}</p>
+              </div>
+              <a href={d.dataUrl} target="_blank" rel="noopener" className="text-muted hover:text-brand p-1.5"><Eye size={16} /></a>
+              <a href={d.dataUrl} download={d.name} className="text-muted hover:text-brand p-1.5"><Download size={16} /></a>
+              <button onClick={() => deleteDocument(d.id)} className="text-muted hover:text-danger p-1.5"><Trash2 size={16} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

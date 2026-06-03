@@ -6,7 +6,7 @@ import { createSeedData, type AppData } from "@/lib/seed";
 import { nowISO, uid } from "@/lib/utils";
 import type {
   Checklist, Company, Contact, DailyReport, Equipment, Expense, Incident,
-  Material, Project, Task, TeamMember, TimeCard, FinalReport, PlanId,
+  Material, Project, Task, TeamMember, TimeCard, FinalReport, PlanId, ProjectDocument,
 } from "@/lib/types";
 
 interface State extends AppData {
@@ -15,6 +15,7 @@ interface State extends AppData {
   demoMode: boolean;
   theme: "light" | "dark";
   finalReports: FinalReport[];
+  documents: ProjectDocument[];
   hydrated: boolean;
 
   // auth / setup
@@ -75,6 +76,9 @@ interface State extends AppData {
   deleteContact: (id: string) => void;
 
   saveFinalReport: (f: Omit<FinalReport, "id" | "companyId">) => string;
+
+  addDocument: (d: Omit<ProjectDocument, "id" | "companyId">) => { ok: boolean; error?: string };
+  deleteDocument: (id: string) => void;
 }
 
 const CID = "cmp_demo";
@@ -103,6 +107,7 @@ export const useStore = create<State>()(
     (set) => ({
       ...emptyData(),
       finalReports: [],
+      documents: [],
       isAuthenticated: false,
       onboardingComplete: false,
       demoMode: false,
@@ -121,6 +126,7 @@ export const useStore = create<State>()(
           return {
             ...data,
             finalReports: [],
+      documents: [],
             user: { ...data.user, name, email },
             company: { ...data.company, name: companyName },
             isAuthenticated: true,
@@ -134,6 +140,7 @@ export const useStore = create<State>()(
           return {
             ...data,
             finalReports: [],
+      documents: [],
             isAuthenticated: true,
             onboardingComplete: true,
             demoMode: true,
@@ -143,6 +150,7 @@ export const useStore = create<State>()(
         set(() => ({
           ...emptyData(),
           finalReports: [],
+      documents: [],
           isAuthenticated: false,
           onboardingComplete: false,
           demoMode: false,
@@ -166,6 +174,7 @@ export const useStore = create<State>()(
         set((s) => ({
           projects: s.projects.filter((x) => x.id !== id),
           reports: s.reports.filter((x) => x.projectId !== id),
+          documents: s.documents.filter((x) => x.projectId !== id),
         })),
 
       // ---- reports ----
@@ -237,6 +246,22 @@ export const useStore = create<State>()(
         }));
         return id;
       },
+
+      addDocument: (d) => {
+        // Guarda de tamanho: o armazenamento local tem limite (~5MB). Evita
+        // corromper o estado persistido com arquivos muito grandes.
+        const MAX = 3 * 1024 * 1024; // 3 MB
+        if (d.size > MAX) {
+          return { ok: false, error: "Arquivo muito grande (máx. 3 MB nesta versão). Comprima o PDF e tente novamente." };
+        }
+        try {
+          set((s) => ({ documents: [...s.documents, { ...d, id: uid("doc"), companyId: CID }] }));
+          return { ok: true };
+        } catch {
+          return { ok: false, error: "Não foi possível salvar o documento (limite de armazenamento atingido)." };
+        }
+      },
+      deleteDocument: (id) => set((s) => ({ documents: s.documents.filter((x) => x.id !== id) })),
     }),
     {
       name: "obrareport-ia-store",

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { organizeRdoText } from "@/lib/ai/engine";
@@ -11,7 +12,7 @@ import { PageHeader } from "@/components/page";
 import { Card, Button, Select, Textarea, Field, useToast, Badge } from "@/components/ui";
 import {
   Mic, MessageSquareText, ListChecks, PenLine, Copy, Square, RotateCcw,
-  Sparkles, ArrowRight, ArrowLeft, Save, CheckCircle2,
+  Sparkles, ArrowRight, ArrowLeft, Save, CheckCircle2, Plus,
 } from "lucide-react";
 
 type Stage = "mode" | "voice" | "text" | "questions" | "review";
@@ -97,15 +98,30 @@ function NovoRdoInner() {
 
       {/* Seletor de obra */}
       <Card className="p-4 mb-5">
-        <Field label="Obra / projeto">
-          <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-            <option value="">Selecione a obra…</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </Select>
-        </Field>
+        {projects.length === 0 ? (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="font-medium">Você ainda não tem nenhuma obra</p>
+              <p className="text-sm text-muted">Crie uma obra para começar a registrar RDOs.</p>
+            </div>
+            <Link href="/app/obras/nova"><Button><Plus size={16} /> Criar obra</Button></Link>
+          </div>
+        ) : (
+          <Field label="Obra / projeto">
+            <div className="flex gap-2">
+              <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="flex-1">
+                <option value="">Selecione a obra…</option>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </Select>
+              <Link href="/app/obras/nova">
+                <Button variant="outline" className="h-full whitespace-nowrap"><Plus size={16} /> Nova obra</Button>
+              </Link>
+            </div>
+          </Field>
+        )}
       </Card>
 
-      {stage === "mode" && <ModeSelector onSelect={startMode} onDuplicate={duplicateLast} />}
+      {stage === "mode" && projects.length > 0 && <ModeSelector onSelect={startMode} onDuplicate={duplicateLast} />}
 
       {stage === "voice" && draft && (
         <VoiceMode draft={draft} onBack={() => setStage("mode")}
@@ -266,12 +282,25 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
   const current = QUESTIONS[idx];
   const progress = ((idx + 1) / QUESTIONS.length) * 100;
 
+  // Texto já confirmado para a pergunta atual.
+  const committed = answers[current.key] || "";
+  // Enquanto grava, mostra a transcrição ao vivo (parcial + final) na caixa.
+  const liveTail = speech.listening ? (speech.transcript + speech.interim).trim() : "";
+  const displayValue = speech.listening
+    ? (committed ? committed + " " : "") + liveTail
+    : committed;
+
+  // Confirma o que foi falado na resposta atual (chamado ao parar de gravar / avançar).
+  function commitSpeech() {
+    const t = speech.transcript.trim();
+    if (t) setAnswers((a) => ({ ...a, [current.key]: (a[current.key] ? a[current.key] + " " : "") + t }));
+    speech.reset();
+  }
+
   function toggleMic() {
     if (speech.listening) {
       speech.stop();
-      const t = speech.transcript.trim();
-      if (t) setAnswers((a) => ({ ...a, [current.key]: (a[current.key] ? a[current.key] + " " : "") + t }));
-      speech.reset();
+      commitSpeech();
     } else {
       speech.reset();
       speech.start();
@@ -279,18 +308,23 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
   }
 
   function next() {
+    if (speech.listening) { speech.stop(); commitSpeech(); }
     if (idx < QUESTIONS.length - 1) { setIdx(idx + 1); speech.reset(); }
     else finish();
   }
   function finish() {
+    if (speech.listening) speech.stop();
+    const merged = { ...answers };
+    const t = speech.transcript.trim();
+    if (t) merged[current.key] = (merged[current.key] ? merged[current.key] + " " : "") + t;
     // Compõe um texto a partir das respostas e roda a IA, mas preserva respostas diretas.
-    const composed = QUESTIONS.map((q) => answers[q.key]).filter(Boolean).join(". ");
+    const composed = QUESTIONS.map((q) => merged[q.key]).filter(Boolean).join(". ");
     const ai = organizeRdoText(composed);
     let d = applyAiResult(draft, ai, composed);
     // sobrepõe campos diretos das perguntas-chave
-    if (answers.chegada) d = { ...d, arrival: extractTime(answers.chegada) || d.arrival };
-    if (answers.saida) d = { ...d, departure: extractTime(answers.saida) || d.departure };
-    if (answers.obs) d = { ...d, notes: answers.obs };
+    if (merged.chegada) d = { ...d, arrival: extractTime(merged.chegada) || d.arrival };
+    if (merged.saida) d = { ...d, departure: extractTime(merged.saida) || d.departure };
+    if (merged.obs) d = { ...d, notes: merged.obs };
     onDone(d);
   }
 
@@ -308,7 +342,8 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
         <h2 className="text-xl font-bold">{current.q}</h2>
         {current.hint && <p className="text-sm text-muted mt-1">{current.hint}</p>}
         <div className="mt-4 flex gap-2">
-          <Textarea value={answers[current.key] || ""} onChange={(e) => setAnswers({ ...answers, [current.key]: e.target.value })}
+          <Textarea value={displayValue} readOnly={speech.listening}
+            onChange={(e) => setAnswers({ ...answers, [current.key]: e.target.value })}
             placeholder="Sua resposta (texto ou voz)" className="flex-1" />
           {speech.supported && (
             <button onClick={toggleMic}
@@ -317,6 +352,14 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
             </button>
           )}
         </div>
+        {speech.listening && (
+          <p className="text-xs text-brand mt-2 flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-danger animate-pulse" /> Ouvindo… fale agora. O texto aparece na caixa.
+          </p>
+        )}
+        {!speech.supported && (
+          <p className="text-xs text-muted mt-2">Reconhecimento de voz indisponível neste navegador — digite a resposta.</p>
+        )}
       </div>
 
       <div className="flex items-center justify-between mt-6">
