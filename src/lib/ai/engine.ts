@@ -138,9 +138,9 @@ function extractTimes(text: string): { chegada?: string; saida?: string } {
 function extractTeam(text: string): { name: string; role?: string }[] {
   const names = new Map<string, string | undefined>();
 
-  // Frases que listam presença
+  // Frases que listam presença (inclusive "cheguei com X e Y", "estava com…")
   const presenceMatch = text.match(
-    /(?:presentes?|equipe|estavam|compareceram|contou com)[^.]*?([A-ZÀ-Ý][a-zà-ÿ]+(?:[\s,]+(?:e\s+)?[A-ZÀ-Ý][a-zà-ÿ]+)*)/,
+    /(?:presentes?|equipe|estavam|estava com|compareceram|contou com|cheguei com|fui com|com a equipe|comigo)[^.]*?([A-Za-zÀ-ÿ]+(?:[\s,]+(?:e\s+)?[A-Za-zÀ-ÿ]+)*)/i,
   );
 
   const harvest = (chunk: string) => {
@@ -149,6 +149,8 @@ function extractTeam(text: string): { name: string; role?: string }[] {
       const tokens = p.trim().split(/\s+/);
       for (let i = 0; i < tokens.length; i++) {
         const tk = tokens[i].replace(/[^A-Za-zÀ-ÿ]/g, "");
+        // nomes próprios: token capitalizado que não é palavra de domínio.
+        // Mantém-se conservador para não inventar pessoas a partir de verbos.
         if (
           /^[A-ZÀ-Ý][a-zà-ÿ]{2,}$/.test(tk) &&
           !isDomainWord(tk.toLowerCase())
@@ -207,12 +209,12 @@ function parseExpenses(
   const lower = text.toLowerCase();
   for (const { word, category } of EXPENSE_HINTS) {
     if (lower.includes(word)) {
-      // tenta achar valor próximo: R$ 50, 50 reais
-      const re = new RegExp(
-        `${word}[^.]{0,40}?(?:r\\$\\s*)?(\\d+[.,]?\\d*)\\s*(?:reais)?`,
-        "i",
-      );
-      const m = lower.match(re);
+      // valor após a palavra: "gasolina R$ 80", "gasolina 80 reais"
+      const after = new RegExp(`${word}[^.]{0,40}?(?:r\\$\\s*)?(\\d+[.,]?\\d*)\\s*(?:reais)?`, "i");
+      // valor antes da palavra: "gastei 80 de gasolina", "R$ 80 de gasolina"
+      const before = new RegExp(`(?:r\\$\\s*)?(\\d+[.,]?\\d*)\\s*(?:reais)?[^.\\d]{0,15}?${word}`, "i");
+      // "before" tem prioridade: número colado à palavra é sinal mais forte.
+      const m = lower.match(before) || lower.match(after);
       const amount = m ? parseFloat(m[1].replace(",", ".")) : undefined;
       out.push({ description: capitalizeFirst(word), amount, category });
     }
