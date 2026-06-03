@@ -6,12 +6,15 @@ import { formatBRL, formatDateBR } from "@/lib/utils";
 const BRAND: [number, number, number] = [244, 114, 11];
 const GRAPHITE: [number, number, number] = [43, 49, 59];
 const MUTED: [number, number, number] = [120, 128, 138];
+const NAVY: [number, number, number] = [31, 61, 99]; // azul do modelo de relatório
 
 interface Ctx {
   doc: jsPDF;
   company: Company;
   y: number;
   page: number;
+  sectionNo: number;
+  footerLabel?: string;
 }
 
 const M = 15; // margem
@@ -20,7 +23,7 @@ const PH = 297;
 
 function newDoc(company: Company): Ctx {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  return { doc, company, y: M, page: 1 };
+  return { doc, company, y: M, page: 1, sectionNo: 0 };
 }
 
 function rgb(c: [number, number, number]) { return c; }
@@ -40,13 +43,54 @@ function footer(ctx: Ctx) {
   const { doc } = ctx;
   doc.setFontSize(8);
   doc.setTextColor(...rgb(MUTED));
-  doc.text(
-    `${ctx.company.name}  •  Gerado por ObraReport IA  •  ${formatDateBR(new Date().toISOString())}`,
-    M, PH - 10,
-  );
-  doc.text(`Página ${ctx.page}`, PW - M, PH - 10, { align: "right" });
+  const left = ctx.footerLabel || `${ctx.company.name}  •  Gerado por ObraReport IA  •  ${formatDateBR(new Date().toISOString())}`;
+  doc.text(left, M, PH - 10);
+  doc.text(`página ${ctx.page}`, PW - M, PH - 10, { align: "right" });
   doc.setDrawColor(230);
   doc.line(M, PH - 14, PW - M, PH - 14);
+}
+
+// Cabeçalho de seção numerado, estilo do modelo de RDO (badge azul + título)
+function numberedSection(ctx: Ctx, title: string) {
+  ensureSpace(ctx, 16);
+  const { doc } = ctx;
+  ctx.sectionNo += 1;
+  const badge = 6.5;
+  doc.setFillColor(...rgb(NAVY));
+  doc.roundedRect(M, ctx.y, badge, badge, 1.2, 1.2, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(String(ctx.sectionNo), M + badge / 2, ctx.y + badge / 2 + 1.6, { align: "center" });
+  doc.setTextColor(...rgb(NAVY));
+  doc.setFontSize(11.5);
+  doc.text(title.toUpperCase(), M + badge + 3, ctx.y + badge / 2 + 1.6);
+  ctx.y += badge + 4;
+}
+
+// Bloco de identificação (rótulos em negrito + valores)
+function kvBlock(ctx: Ctx, rows: [string, string][]) {
+  const { doc } = ctx;
+  const colW = (PW - 2 * M) / 2;
+  let i = 0;
+  while (i < rows.length) {
+    ensureSpace(ctx, 6);
+    for (let c = 0; c < 2 && i < rows.length; c++, i++) {
+      const x = M + c * colW;
+      const [label, value] = rows[i];
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...rgb(GRAPHITE));
+      const lw = doc.getTextWidth(label + " ");
+      doc.text(label, x, ctx.y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...rgb(MUTED));
+      const val = doc.splitTextToSize(value, colW - lw - 2)[0] || value;
+      doc.text(val, x + lw, ctx.y);
+    }
+    ctx.y += 5.5;
+  }
+  ctx.y += 2;
 }
 
 function logoBox(ctx: Ctx, x: number, y: number, size = 16) {
@@ -129,30 +173,87 @@ function photoGrid(ctx: Ctx, media: DailyReport["media"]) {
   const gap = 5;
   const w = (PW - 2 * M - gap) / cols;
   const h = w * 0.66;
+  const rowH = h + 13; // imagem + 2 linhas de legenda
   let col = 0;
   for (const p of photos) {
-    ensureSpace(ctx, h + 8);
+    ensureSpace(ctx, rowH);
     const x = M + col * (w + gap);
     try {
       if (p.dataUrl) {
         ctx.doc.addImage(p.dataUrl, "JPEG", x, ctx.y, w, h, undefined, "FAST");
       } else {
-        const c = hexToRgb(p.color || "#cccccc");
-        ctx.doc.setFillColor(c[0], c[1], c[2]);
+        // Placeholder neutro (imagem ausente nos dados de demonstração)
+        ctx.doc.setFillColor(238, 241, 245);
         ctx.doc.roundedRect(x, ctx.y, w, h, 2, 2, "F");
-        ctx.doc.setTextColor(255, 255, 255);
-        ctx.doc.setFontSize(8);
-        ctx.doc.text(p.phase.toUpperCase(), x + 3, ctx.y + 6);
+        ctx.doc.setTextColor(...rgb(MUTED));
+        ctx.doc.setFontSize(9);
+        ctx.doc.text("Registro fotográfico", x + w / 2, ctx.y + h / 2 - 1, { align: "center" });
+        ctx.doc.setFontSize(7.5);
+        ctx.doc.text(p.phase.toUpperCase(), x + w / 2, ctx.y + h / 2 + 4, { align: "center" });
       }
     } catch { /* ignora imagem inválida */ }
+    ctx.doc.setDrawColor(225);
+    ctx.doc.rect(x, ctx.y, w, h);
     ctx.doc.setTextColor(...rgb(MUTED));
-    ctx.doc.setFontSize(8);
-    const cap = ctx.doc.splitTextToSize(`[${p.phase}] ${p.caption}`, w);
-    ctx.doc.text(cap[0] || "", x, ctx.y + h + 4);
+    ctx.doc.setFontSize(7.5);
+    const cap = ctx.doc.splitTextToSize(p.caption, w).slice(0, 2);
+    ctx.doc.text(cap, x, ctx.y + h + 4);
     col += 1;
-    if (col >= cols) { col = 0; ctx.y += h + 9; }
+    if (col >= cols) { col = 0; ctx.y += rowH; }
   }
-  if (col !== 0) ctx.y += h + 9;
+  if (col !== 0) ctx.y += rowH;
+}
+
+// Tabela "Solicitações e Providências" com prioridade colorida
+function providenciasTable(ctx: Ctx, rows: { description: string; responsible: string; priority: string }[]) {
+  if (rows.length === 0) { paragraph(ctx, "Nenhuma solicitação registrada.", { color: MUTED }); return; }
+  autoTable(ctx.doc, {
+    startY: ctx.y,
+    margin: { left: M, right: M },
+    head: [["SOLICITAÇÃO", "RESPONSÁVEL", "PRIORIDADE"]],
+    body: rows.map((r) => [r.description, r.responsible, r.priority]),
+    theme: "grid",
+    headStyles: { fillColor: NAVY, fontSize: 8.5, halign: "left" },
+    bodyStyles: { fontSize: 9, textColor: GRAPHITE },
+    columnStyles: { 1: { cellWidth: 42 }, 2: { cellWidth: 26, halign: "center" } },
+    styles: { cellPadding: 2 },
+    didParseCell: (data) => {
+      if (data.section === "body" && data.column.index === 2) {
+        const v = String(data.cell.raw).toLowerCase();
+        if (v.includes("alta")) { data.cell.styles.fillColor = [253, 234, 234]; data.cell.styles.textColor = [197, 48, 48]; }
+        else if (v.includes("méd") || v.includes("med")) { data.cell.styles.fillColor = [232, 240, 254]; data.cell.styles.textColor = [37, 99, 235]; }
+        else { data.cell.styles.fillColor = [240, 242, 245]; data.cell.styles.textColor = GRAPHITE; }
+        data.cell.styles.fontStyle = "bold";
+      }
+    },
+  });
+  // @ts-expect-error lastAutoTable é adicionado pelo plugin
+  ctx.y = (ctx.doc.lastAutoTable?.finalY ?? ctx.y) + 6;
+}
+
+// Assinaturas em 3 colunas: Executora / Contratante / Responsável Técnico
+function signatures3(ctx: Ctx, executora: string, executoraSub: string, contratante: string, contratanteSub: string, respTecnico: string) {
+  numberedSection(ctx, "Assinaturas");
+  ensureSpace(ctx, 30);
+  const { doc } = ctx;
+  const gap = 8;
+  const colW = (PW - 2 * M - 2 * gap) / 3;
+  const draw = (x: number, title: string, sub: string) => {
+    doc.setDrawColor(150);
+    doc.line(x, ctx.y + 12, x + colW, ctx.y + 12);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...rgb(GRAPHITE));
+    doc.text(doc.splitTextToSize(title, colW), x + colW / 2, ctx.y + 17, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...rgb(MUTED));
+    doc.text(doc.splitTextToSize(sub, colW), x + colW / 2, ctx.y + 21, { align: "center" });
+  };
+  draw(M, executora, executoraSub);
+  draw(M + colW + gap, contratante, contratanteSub);
+  draw(M + 2 * (colW + gap), respTecnico, "Data: ____/____/______");
+  ctx.y += 28;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -187,97 +288,119 @@ export function generateRdoPdf(report: DailyReport, project: Project, company: C
   const ctx = newDoc(company);
   const { doc } = ctx;
 
-  // Capa
-  doc.setFillColor(...rgb(BRAND));
-  doc.rect(0, 0, PW, 55, "F");
-  logoBox(ctx, M, 14, 20);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.text("Relatório Diário de Obra", M + 26, 24);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  doc.text(company.name, M + 26, 32);
-  doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
-  doc.text(`RDO #${report.number}`, PW - M, 24, { align: "right" });
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(formatDateBR(report.date), PW - M, 32, { align: "right" });
+  ctx.footerLabel = `Relatório Diário de Obra Nº ${pad(report.number)} — ${project.name.split("—")[0].trim()}`;
 
-  ctx.y = 64;
+  // Cabeçalho (estilo do modelo: limpo, com logo, número e data)
+  logoBox(ctx, M, 14, 16);
   doc.setTextColor(...rgb(GRAPHITE));
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(9.5);
+  doc.text(company.name, M + 20, 20);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...rgb(MUTED));
+  doc.text(company.city || "", M + 20, 25);
+
+  doc.setTextColor(...rgb(NAVY));
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(`RDO Nº ${pad(report.number)}`, PW - M, 20, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...rgb(MUTED));
+  doc.text(formatDateBR(report.date), PW - M, 26, { align: "right" });
+
+  doc.setDrawColor(...rgb(NAVY));
+  doc.setLineWidth(0.6);
+  doc.line(M, 30, PW - M, 30);
+  doc.setLineWidth(0.2);
+
+  // Título
+  ctx.y = 38;
+  doc.setTextColor(...rgb(NAVY));
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.text("RELATÓRIO DIÁRIO DE OBRA", M, ctx.y);
+  ctx.y += 6;
+  doc.setTextColor(...rgb(GRAPHITE));
+  doc.setFontSize(11);
   const projName = doc.splitTextToSize(project.name, PW - 2 * M);
   doc.text(projName, M, ctx.y);
-  ctx.y += projName.length * 6 + 2;
+  ctx.y += projName.length * 5.5 + 3;
 
-  // Tabela de cabeçalho
-  table(ctx, ["Campo", "Informação"], [
-    ["Cliente", project.client],
-    ["Endereço", project.address || "—"],
-    ["Responsável", report.responsible],
-    ["Supervisor", report.supervisor],
-    ["Horário", `${report.arrival || "—"} às ${report.departure || "—"}`],
-    ["Clima", report.weather || "—"],
-    ["Condição do local", report.siteCondition || "—"],
-    ["Status do RDO", report.status],
+  // Bloco de identificação
+  kvBlock(ctx, [
+    ["Contratante:", project.client],
+    ["Local:", project.address || "—"],
+    ["Data:", `${formatDateBR(report.date)}`],
+    ["Horário de trabalho:", `${report.arrival || "—"} às ${report.departure || "—"}`],
+    ["Responsável pela equipe:", report.supervisor || report.responsible],
+    ["Clima / condição:", `${report.weather || "—"}`],
   ]);
 
-  sectionTitle(ctx, "Resumo executivo");
+  numberedSection(ctx, "Resumo executivo");
   paragraph(ctx, report.executiveSummary || "Sem resumo registrado.");
 
-  sectionTitle(ctx, "Equipe");
-  table(ctx, ["Nome", "Função", "Presença"],
-    report.team.map((t) => [t.name, t.role || "—", t.present ? "Presente" : "Ausente"]));
+  if (report.team.some((t) => t.present)) {
+    numberedSection(ctx, "Equipe / efetivo");
+    bullets(ctx, report.team.filter((t) => t.present).map((t) => `${t.name}${t.role ? ` — ${t.role}` : ""}`));
+  }
 
-  sectionTitle(ctx, "Atividades executadas");
-  table(ctx, ["Atividade", "Status", "Obs."],
-    report.activities.map((a) => [a.description, statusLabel(a.status), a.note || "—"]));
+  numberedSection(ctx, "Atividades executadas no dia");
+  bullets(ctx, report.activities.map((a) => a.description + (a.status !== "concluida" ? ` (${statusLabel(a.status)})` : "")));
 
   if (report.materials.length || report.equipment.length) {
-    sectionTitle(ctx, "Materiais e equipamentos");
+    numberedSection(ctx, "Materiais e equipamentos");
     table(ctx, ["Tipo", "Item", "Qtd"], [
       ...report.materials.map((m) => ["Material", m.name, m.quantity || "—"] as string[]),
       ...report.equipment.map((e) => ["Equipamento", e.name, e.quantity || "—"] as string[]),
     ]);
   }
 
-  sectionTitle(ctx, "Ocorrências e impedimentos");
-  bullets(ctx, [...report.occurrences, ...report.impediments]);
+  numberedSection(ctx, "Ocorrências e observações técnicas");
+  bullets(ctx, [...report.occurrences, ...report.impediments, ...(report.notes ? [report.notes] : [])]);
 
-  if (report.clientRequests.length) {
-    sectionTitle(ctx, "Solicitações do cliente");
-    bullets(ctx, report.clientRequests);
+  // Solicitações e providências (estruturado, com prioridade)
+  const provs = report.providencias && report.providencias.length
+    ? report.providencias.map((p) => ({ description: p.description, responsible: p.responsible, priority: p.priority }))
+    : report.clientRequests.map((c) => ({ description: c, responsible: "—", priority: "Média" }));
+  if (provs.length) {
+    numberedSection(ctx, "Solicitações e providências");
+    providenciasTable(ctx, provs);
   }
 
   if (report.expenses.length) {
-    sectionTitle(ctx, "Gastos");
+    numberedSection(ctx, "Gastos");
     table(ctx, ["Categoria", "Descrição", "Valor", "Responsável"],
       report.expenses.map((e) => [e.category, e.description, formatBRL(e.amount), e.responsible]));
   }
 
-  sectionTitle(ctx, "Fotos");
+  const nextLabel = report.nextDayPlan.length ? "Programação para o próximo dia" : "Pendências e próximos passos";
+  numberedSection(ctx, nextLabel);
+  bullets(ctx, report.nextDayPlan.length ? report.nextDayPlan : [...report.pending]);
+
+  numberedSection(ctx, "Registro fotográfico");
   photoGrid(ctx, report.media);
 
   const videos = report.media.filter((m) => m.kind === "video");
   if (videos.length) {
-    sectionTitle(ctx, "Vídeos");
-    bullets(ctx, videos.map((v) => `${v.caption} (vídeo — disponível no app/link compartilhável)`));
+    numberedSection(ctx, "Vídeos");
+    bullets(ctx, videos.map((v) => `${v.caption} (vídeo — disponível no app / link compartilhável)`));
   }
 
-  sectionTitle(ctx, "Pendências e próximos passos");
-  bullets(ctx, [...report.pending, ...report.nextDayPlan]);
-
-  if (report.notes) {
-    sectionTitle(ctx, "Observações gerais");
-    paragraph(ctx, report.notes);
-  }
-
-  signatures(ctx, report);
+  const fieldResp = report.signatures.find((s) => s.role === "supervisor")?.name || report.supervisor;
+  signatures3(
+    ctx,
+    `Executora — ${company.name}`, `Responsável de campo: ${fieldResp}`,
+    `Contratante — ${project.client}`, "Representante / Fiscalização",
+    "Responsável Técnico",
+  );
   footer(ctx);
   return doc;
+}
+
+function pad(n: number): string {
+  return String(n).padStart(3, "0");
 }
 
 // ===== Relatório final consolidado =====

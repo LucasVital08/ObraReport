@@ -129,6 +129,15 @@ export interface RdoItem {
   status?: string;
 }
 
+export type ProvidenciaPriority = "Alta" | "Média" | "Baixa";
+
+// Solicitação/providência estruturada (coluna do PDF: Solicitação | Responsável | Prioridade)
+export interface Providencia {
+  description: string;
+  responsible: string;
+  priority: ProvidenciaPriority;
+}
+
 export interface Signature {
   id: ID;
   role: "supervisor" | "cliente" | "responsavel" | "testemunha";
@@ -177,6 +186,9 @@ export interface DailyReport {
   risks: string[];
   impediments: string[];
   clientRequests: string[];
+  // Solicitações e providências com responsável e prioridade (opcional;
+  // quando ausente, o PDF usa clientRequests como fallback)
+  providencias?: Providencia[];
   pending: string[];
   nextDayPlan: string[];
   executiveSummary: string;

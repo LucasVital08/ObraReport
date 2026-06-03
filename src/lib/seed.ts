@@ -1,6 +1,6 @@
 import type {
   Checklist, Company, Contact, DailyReport, Equipment, Expense, Incident,
-  Material, Project, Task, TeamMember, TimeCard, User, MediaItem,
+  Material, Project, Task, TeamMember, TimeCard, User, MediaItem, Providencia,
 } from "@/lib/types";
 import { colorFromString, uid } from "@/lib/utils";
 
@@ -22,30 +22,24 @@ export interface AppData {
 
 const COMPANY_ID = "cmp_demo";
 
-function photos(captions: { phase: MediaItem["phase"]; caption: string }[]): MediaItem[] {
-  return captions.map((c, i) => ({
+function photos(caps: { phase: MediaItem["phase"]; caption: string }[]): MediaItem[] {
+  return caps.map((c, i) => ({
     id: uid("med"),
     kind: "photo" as const,
     phase: c.phase,
     caption: c.caption,
     color: colorFromString(c.caption + i),
-    author: "Lucas Vital",
+    author: "Equipe RF",
     createdAt: new Date().toISOString(),
     includeInPdf: true,
   }));
 }
 
-function video(caption: string): MediaItem {
-  return {
-    id: uid("med"),
-    kind: "video",
-    phase: "durante",
-    caption,
-    color: colorFromString(caption),
-    author: "Lucas Vital",
-    createdAt: new Date().toISOString(),
-    includeInPdf: true,
-  };
+function items(names: string[]): { id: string; name: string; quantity?: string }[] {
+  return names.map((name) => ({ id: uid("it"), name }));
+}
+function acts(list: { d: string; s?: "concluida" | "parcial" | "nao_executada" }[]) {
+  return list.map((a) => ({ id: uid("act"), description: a.d, status: a.s || ("concluida" as const) }));
 }
 
 export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">> & { companyName?: string }): AppData {
@@ -60,451 +54,409 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
 
   const company: Company = {
     id: COMPANY_ID,
-    name: overrides?.companyName || "AKS Enterprise Obras e Serviços",
-    logoText: "AKS",
+    name: overrides?.companyName || "RF Soluções",
+    logoText: "RF",
     brandColor: "#f4720b",
     plan: "profissional",
     city: "Vitória - ES",
     createdAt: new Date().toISOString(),
   };
 
-  const p1: Project = {
-    id: "prj_shopping",
+  // ===== Projeto 1: Drywall / desmontagem — Shopping Park Vitória =====
+  const drywall: Project = {
+    id: "prj_drywall",
     companyId: COMPANY_ID,
-    name: "Shopping Vitória — Pintura e manutenção da usina de asfalto",
-    client: "Shopping Vitória",
-    address: "Av. Américo Buaiz, 200 — Enseada do Suá, Vitória - ES",
-    technicalLead: "Eng. Marcos Andrade",
-    supervisor: "Lucas Vital",
-    startDate: addDays(-12),
-    expectedEndDate: addDays(6),
+    name: "Shopping Park Vitória — Troca de drywall e desmontagem estrutural do Mall",
+    client: "Shopping Park Vitória",
+    address: "Corredor Principal — Shopping Park Vitória, Vitória - ES",
+    technicalLead: "Eng. responsável técnico",
+    supervisor: "Alan",
+    startDate: "2026-05-12",
+    expectedEndDate: "2026-06-10",
     status: "em_andamento",
-    budget: 84000,
+    budget: 320000,
     description:
-      "Pintura industrial, preparação de superfície e manutenção da usina de asfalto, com limpeza técnica e organização das áreas de circulação.",
-    coverColor: "#f4720b",
-    createdAt: new Date().toISOString(),
-  };
-
-  const p2: Project = {
-    id: "prj_solar",
-    companyId: COMPANY_ID,
-    name: "Residencial Mata da Praia — Instalação de energia solar",
-    client: "Condomínio Mata da Praia",
-    address: "R. Aleixo Netto, 1500 — Mata da Praia, Vitória - ES",
-    technicalLead: "Eng. Patrícia Lima",
-    supervisor: "Geidson Souza",
-    startDate: addDays(-4),
-    expectedEndDate: addDays(15),
-    status: "aguardando_material",
-    budget: 120000,
-    description:
-      "Instalação de sistema fotovoltaico de 45 kWp, incluindo estrutura, inversores e comissionamento.",
+      "Desmontagem estrutural do mall e troca de forro de gesso/drywall no corredor principal, executada em horário noturno (23h às 03h) para não interferir na operação do shopping. Inclui remoção de perfis metálicos, policarbonato, luminárias e segregação de resíduos.",
     coverColor: "#2563eb",
     createdAt: new Date().toISOString(),
   };
 
-  const p3: Project = {
-    id: "prj_drywall",
+  // ===== Projeto 2: Revitalização da Usina de Asfalto — Lidermac/Muribeca =====
+  const usina: Project = {
+    id: "prj_usina",
     companyId: COMPANY_ID,
-    name: "Clínica OdontoCenter — Reforma e drywall",
-    client: "OdontoCenter Ltda.",
-    address: "R. Chapot Presvot, 80 — Praia do Canto, Vitória - ES",
-    technicalLead: "Arq. Renata Dias",
-    supervisor: "Ítalo Ferreira",
-    startDate: addDays(-30),
-    expectedEndDate: addDays(-2),
-    realEndDate: addDays(-1),
-    status: "concluida",
-    budget: 56000,
+    name: "Revitalização da Usina de Asfalto — Lidermac / Muribeca",
+    client: "Lidermac",
+    address: "Pátio de manutenção — Lidermac, Muribeca",
+    technicalLead: "Responsável Técnico",
+    supervisor: "Leone",
+    startDate: "2026-06-01",
+    expectedEndDate: "2026-06-20",
+    status: "em_andamento",
+    budget: 145000,
     description:
-      "Reforma completa com divisórias em drywall, forro, elétrica e pintura para 6 consultórios.",
-    coverColor: "#16a34a",
+      "Revitalização e tratamento da estrutura metálica da usina de piche/asfalto: lavagem, lixamento, remoção de oxidação, preparação da superfície e pintura. Atuação simultânea da equipe em diferentes frentes (pontos superiores, laterais, internos e inferiores).",
+    coverColor: "#f4720b",
     createdAt: new Date().toISOString(),
   };
 
   const team: TeamMember[] = [
-    tm("Lucas Vital", "Supervisor", "27 99999-0001", p1.id),
-    tm("William Costa", "Pintor", "27 99999-0002", p1.id),
-    tm("Ítalo Ferreira", "Encarregado", "27 99999-0003", p3.id),
-    tm("Geidson Souza", "Eletricista", "27 99999-0004", p2.id),
-    tm("Hopkins Almeida", "Ajudante", "27 99999-0005", p1.id),
-    tm("Rafael Nunes", "Servente", "27 99999-0006", p1.id),
+    tm("Alan", "Encarregado", "27 99999-1001", drywall.id),
+    tm("Leone", "Responsável de campo", "27 99999-2001", usina.id),
+    tm("Ítalo Ferreira", "Lixador", "27 99999-2002", usina.id),
+    tm("Hopkins Almeida", "Ajudante", "27 99999-2003", usina.id),
+    tm("William Costa", "Lixador", "27 99999-2004", usina.id),
+    tm("Geidson Souza", "Ajudante", "27 99999-2005", usina.id),
+    tm("Matheus", "Suprimentos", "27 99999-3001", usina.id),
   ];
 
   const reports: DailyReport[] = [
-    rdoShopping1(p1),
-    rdoShopping2(p1),
-    rdoShopping3(p1),
-    rdoSolar1(p2),
-    rdoDrywall1(p3),
+    ...buildDrywallReports(drywall),
+    usinaRdo001(usina),
+    usinaRdo002(usina),
   ];
 
   const tasks: Task[] = [
-    task(p1, "Comprar duas extensões de 20m", "William", "alta", "a_fazer", 1),
-    task(p1, "Solicitar jato com mangueira de 20m", "Lucas Vital", "urgente", "em_andamento", 0),
-    task(p1, "Concluir lixamento da ala leste", "Hopkins Almeida", "media", "em_andamento", 2),
-    task(p1, "Aplicar primer na usina de asfalto", "William", "alta", "a_fazer", 3),
-    task(p1, "Limpeza técnica final do setor A", "Rafael Nunes", "baixa", "a_fazer", 5),
-    task(p2, "Receber inversores do fornecedor", "Geidson Souza", "alta", "aguardando_material", 2),
-    task(p2, "Montar estrutura de fixação dos módulos", "Geidson Souza", "media", "a_fazer", 4),
-    task(p3, "Vistoria final com cliente", "Ítalo Ferreira", "alta", "concluido", -2),
-    task(p3, "Pintura de acabamento dos consultórios", "Ítalo Ferreira", "media", "concluido", -3),
-    task(p1, "Aprovar RDO do dia com engenheiro", "Lucas Vital", "media", "aguardando_aprovacao", 0),
+    task(usina.id, "Comprar 2 plugs/divisores para as lixadeiras", "Suprimentos RF", "urgente", "a_fazer", "2026-06-03"),
+    task(usina.id, "Locar jato/lavadora com mangueira de 20m", "Suprimentos RF", "alta", "em_andamento", "2026-06-03"),
+    task(usina.id, "Providenciar tinta para a pintura", "Matheus", "alta", "aguardando_material", "2026-06-03"),
+    task(usina.id, "Continuar lixamento das áreas pendentes", "Equipe RF", "media", "em_andamento", "2026-06-03"),
+    task(drywall.id, "Remover luminárias do próximo trecho", "Alan", "media", "a_fazer", "2026-05-29"),
+    task(drywall.id, "Segregar e destinar resíduos da desmontagem", "Equipe RF", "media", "em_andamento", "2026-05-29"),
+    task(drywall.id, "Conferir travamento da plataforma JLG", "Alan", "alta", "concluido", "2026-05-28"),
   ];
 
-  const timeCards: TimeCard[] = team
-    .filter((t) => t.projectId === p1.id)
-    .map((t) => ({
-      id: uid("tc"),
-      companyId: COMPANY_ID,
-      projectId: p1.id,
-      memberName: t.name,
-      date: today(),
-      checkIn: "07:30",
-      checkOut: "17:00",
-      breakMinutes: 60,
-      note: "",
-    }));
+  const timeCards: TimeCard[] = [
+    tc(usina.id, "Leone", "2026-06-02", "07:30", "17:00"),
+    tc(usina.id, "Ítalo Ferreira", "2026-06-02", "09:30", "17:00"),
+    tc(usina.id, "William Costa", "2026-06-02", "07:30", "17:00"),
+    tc(usina.id, "Geidson Souza", "2026-06-02", "07:30", "17:00"),
+    tc(drywall.id, "Alan", "2026-05-28", "23:00", "03:00", 0),
+  ];
 
   const materials: Material[] = [
-    mat(p1, "Tinta acrílica industrial", "balde 18L", "comprado", 6, 6, "Tech Tintas", 280),
-    mat(p1, "Lixa grão 80", "unidade", "usado", 40, 50, "Castelo Locações", 4),
-    mat(p1, "Selador acrílico", "galão 3,6L", "comprado", 4, 4, "Tech Tintas", 95),
-    mat(p1, "Extensão elétrica 20m", "unidade", "solicitado", 0, 2, "—", 120),
-    mat(p2, "Módulo fotovoltaico 550W", "unidade", "solicitado", 0, 82, "SolarMax", 780),
-    mat(p3, "Placa de drywall", "unidade", "usado", 120, 120, "Casa do Construtor", 48),
+    mat(usina.id, "Lixadeira/esmerilhadeira", "un", "usado", 2, 4, "Castelos Locações", 0),
+    mat(usina.id, "Extensão elétrica", "un", "solicitado", 1, 2, "Suprimentos RF", 120),
+    mat(usina.id, "Espátula para limpeza", "un", "solicitado", 0, 4, "Suprimentos RF", 18),
+    mat(usina.id, "Tinta para pintura", "balde", "pendente", 0, 8, "Matheus", 280),
+    mat(usina.id, "Plug/divisor de energia", "un", "solicitado", 0, 2, "Suprimentos RF", 36),
+    mat(drywall.id, "Placa de drywall/gesso", "un", "usado", 0, 0, "—", 0),
+    mat(drywall.id, "Disco de corte", "un", "usado", 24, 30, "Suprimentos RF", 9),
   ];
 
   const equipment: Equipment[] = [
-    eq(p1, "Lixadeira pequena", "Elétrica", "em_uso", "William Costa", "Boa"),
-    eq(p1, "Lixadeira pequena (2)", "Elétrica", "em_uso", "Hopkins Almeida", "Boa"),
-    eq(p1, "Jato de água alta pressão", "Hidráulica", "manutencao", "Lucas Vital", "Aguardando mangueira"),
-    eq(p1, "Compressor de ar", "Pneumática", "disponivel", "—", "Boa"),
-    eq(p2, "Furadeira de impacto", "Elétrica", "disponivel", "Geidson Souza", "Boa"),
+    eq(drywall.id, "Plataforma elevatória tipo tesoura JLG", "Elevação", "em_uso", "Alan", "Operacional"),
+    eq(usina.id, "Lixadeira pequena (dupla 1)", "Elétrica", "em_uso", "William Costa", "Boa"),
+    eq(usina.id, "Lixadeira pequena (dupla 2)", "Elétrica", "em_uso", "Ítalo Ferreira", "Boa"),
+    eq(usina.id, "Esmerilhadeira", "Elétrica", "em_uso", "Geidson Souza", "Boa"),
+    eq(usina.id, "Caminhão pipa (apoio)", "Apoio", "disponivel", "Lidermac", "Operacional"),
+    eq(usina.id, "Guindaste PHD (apoio)", "Apoio", "disponivel", "Lidermac", "Operacional"),
   ];
 
   const checklists: Checklist[] = [
-    checklist(p1, "Checklist de Segurança — Pintura", "segurança", "Lucas Vital", [
-      ["EPIs disponíveis para toda a equipe", true],
-      ["Área isolada e sinalizada", true],
-      ["Extintor de incêndio próximo", false],
-      ["Ventilação adequada para pintura", true],
-      ["Andaimes travados e nivelados", true],
+    checklist(usina.id, "Checklist de Segurança — Trabalho em altura", "segurança", "Leone", [
+      ["EPIs e cinto de segurança para toda a equipe", true],
+      ["Área de acesso organizada e sinalizada", true],
+      ["Cabos e extensões protegidos", false],
+      ["Escada/acesso à parte superior seguro", true],
+      ["Pontos de energia identificados", false],
     ]),
-    checklist(p1, "Início de Obra — Setor A", "início de obra", "Lucas Vital", [
-      ["Materiais conferidos", true],
-      ["Equipamentos testados", true],
-      ["Equipe instruída", true],
-      ["Ponto de energia liberado", false],
-    ]),
-    checklist(p3, "Checklist de Entrega — OdontoCenter", "entrega", "Ítalo Ferreira", [
-      ["Acabamento revisado", true],
-      ["Limpeza final concluída", true],
-      ["Elétrica testada", true],
-      ["Cliente vistoriou", true],
-      ["Termo de entrega assinado", true],
+    checklist(drywall.id, "Checklist Noturno — Desmontagem", "início de obra", "Alan", [
+      ["Plataforma JLG inspecionada e travada", true],
+      ["Área isolada do fluxo do shopping", true],
+      ["Resíduos segregados ao final", true],
+      ["Luminárias removidas com segurança", true],
+      ["Trecho liberado para a próxima etapa", true],
     ]),
   ];
 
   const incidents: Incident[] = [
-    inc(p1, "Falta de extensão elétrica na loja", "falta de material", "media",
-      "Ao chegar na Castelo Locações havia apenas uma extensão disponível. William ficou de providenciar a segunda.",
-      "William Costa", "em_andamento", "Comprar duas extensões de 20m até amanhã."),
-    inc(p1, "Solicitação de jato com mangueira de 20m", "solicitação do contratante", "baixa",
-      "Necessário jato com mangueira de pelo menos 20 metros e dois plugs para dividir o ponto de energia entre as lixadeiras.",
-      "Lucas Vital", "aberta", "Locar mangueira de 20m e adquirir 2 plugs."),
-    inc(p1, "Atraso por troca de equipamento", "atraso", "baixa",
-      "Equipe precisou se deslocar até a locadora para trocar a lixadeira grande por duas pequenas, atrasando o início.",
-      "Lucas Vital", "resolvida", "Deslocamento concluído, serviço iniciado."),
-    inc(p2, "Atraso na entrega dos módulos", "falta de material", "alta",
-      "Fornecedor informou atraso de 5 dias na entrega dos módulos fotovoltaicos.",
-      "Geidson Souza", "aberta", "Acionar fornecedor alternativo SolarMax."),
-    inc(p1, "Chuva no fim da tarde", "chuva", "baixa",
-      "Chuva leve no fim da tarde interrompeu a pintura externa por 40 minutos.",
-      "Lucas Vital", "resolvida", "Atividade retomada após estiagem."),
+    inc(usina.id, "Jato de água insuficiente", "problema com equipamento", "media",
+      "A lavagem com o caminhão pipa foi realizada, porém o jato mostrou-se insuficiente para a limpeza mais profunda da estrutura.",
+      "Leone", "em_andamento", "Solicitar jato/lavadora de pressão com mangueira de pelo menos 20m."),
+    inc(usina.id, "Ausência de tinta no local", "falta de material", "alta",
+      "A tinta não estava disponível no canteiro, o que impossibilitou o início da pintura após o lixamento.",
+      "Matheus", "aberta", "Providenciar a tinta para a pintura."),
+    inc(usina.id, "Extensão insuficiente na locadora", "falta de material", "media",
+      "Ao chegar à Castelos Locações havia apenas uma extensão disponível, exigindo complementação pela própria equipe.",
+      "Suprimentos RF", "em_andamento", "Comprar extensão adicional e 2 plugs/divisores."),
+    inc(drywall.id, "Trabalho em altura no corredor", "risco de segurança", "media",
+      "Desmontagem em altura com plataforma elevatória sobre o corredor principal exige atenção contínua aos EPIs e isolamento da área.",
+      "Alan", "resolvida", "Área isolada e plataforma travada antes da operação."),
   ];
 
   const expenses: Expense[] = [
-    exp(p1, "Gasolina — deslocamento à locadora", "gasolina", 80, "Lucas Vital", reports[0].id),
-    exp(p1, "Almoço da equipe", "alimentação", 95, "Lucas Vital", reports[0].id),
-    exp(p1, "Lanche da tarde", "alimentação", 38, "Hopkins Almeida", reports[1].id),
-    exp(p1, "Locação de lixadeiras", "locação", 220, "Lucas Vital", reports[0].id),
-    exp(p1, "Tintas industriais", "material", 1680, "Lucas Vital", reports[1].id),
-    exp(p1, "Pedágio", "pedágio", 12, "William Costa", reports[2].id),
-    exp(p1, "Plugs elétricos", "ferramenta", 36, "William Costa", reports[2].id),
-    exp(p2, "Diária de instalador", "diária", 280, "Geidson Souza"),
-    exp(p3, "Material de acabamento", "material", 540, "Ítalo Ferreira"),
-    exp(p1, "Estacionamento", "estacionamento", 25, "Lucas Vital", reports[1].id),
+    exp(usina.id, "Locação de lixadeiras", "locação", 220, "Leone", reports.find((r) => r.projectId === usina.id)!.id),
+    exp(usina.id, "Combustível — deslocamento à locadora", "gasolina", 80, "Leone"),
+    exp(usina.id, "Almoço da equipe", "alimentação", 95, "Leone"),
+    exp(usina.id, "Plugs e extensão", "ferramenta", 156, "Suprimentos RF"),
+    exp(drywall.id, "Locação plataforma JLG (diária)", "locação", 680, "Alan"),
+    exp(drywall.id, "Discos de corte", "ferramenta", 216, "Alan"),
+    exp(drywall.id, "Descarte de resíduos", "transporte", 140, "Alan"),
   ];
 
   const contacts: Contact[] = [
-    ct("Shopping Vitória", "cliente", "27 3344-0000", "contato@shoppingvitoria.com.br", "Shopping Vitória"),
-    ct("Eng. Marcos Andrade", "engenheiro", "27 98888-1010", "marcos@aksenterprise.com.br", "AKS Enterprise"),
+    ct("Lidermac", "cliente", "81 3000-0000", "contato@lidermac.com.br", "Lidermac"),
+    ct("Shopping Park Vitória", "cliente", "27 3000-0000", "obras@parkvitoria.com.br", "Shopping Park Vitória"),
+    ct("Castelos Locações", "locadora", "27 3311-7070", "atendimento@casteloslocacoes.com.br", "Castelos Locações"),
     ct("Tech Tintas", "fornecedor", "27 3322-5050", "vendas@techtintas.com.br", "Tech Tintas"),
-    ct("Castelo Locações", "locadora", "27 3311-7070", "atendimento@castelolocacoes.com.br", "Castelo Locações"),
-    ct("SolarMax Distribuidora", "fornecedor", "27 3300-9090", "comercial@solarmax.com.br", "SolarMax"),
-    ct("Defesa Civil", "contatos de emergência", "199", "", "Prefeitura de Vitória"),
+    ct("Matheus — Suprimentos", "fornecedor", "27 99999-3001", "suprimentos@rfsolucoes.com.br", "RF Soluções"),
+    ct("Leone — Responsável de campo", "equipe", "27 99999-2001", "leone@rfsolucoes.com.br", "RF Soluções"),
   ];
 
-  return { user, company, projects: [p1, p2, p3], reports, tasks, team, timeCards, materials, equipment, checklists, incidents, expenses, contacts };
+  return {
+    user, company, projects: [drywall, usina], reports, tasks, team, timeCards,
+    materials, equipment, checklists, incidents, expenses, contacts,
+  };
 
   // ---- helpers locais ----
   function tm(name: string, role: string, phone: string, projectId: string): TeamMember {
     return { id: uid("tm"), companyId: COMPANY_ID, name, role, phone, active: true, projectId };
   }
-  function task(p: Project, title: string, assignee: string, priority: Task["priority"], status: Task["status"], dueOffset: number): Task {
-    return { id: uid("tsk"), companyId: COMPANY_ID, projectId: p.id, title, description: "", assignee, priority, dueDate: addDays(dueOffset), status, createdAt: new Date().toISOString() };
+  function task(projectId: string, title: string, assignee: string, priority: Task["priority"], status: Task["status"], dueDate: string): Task {
+    return { id: uid("tsk"), companyId: COMPANY_ID, projectId, title, description: "", assignee, priority, dueDate, status, createdAt: new Date().toISOString() };
   }
-  function mat(p: Project, name: string, unit: string, status: Material["status"], used: number, req: number, supplier: string, val: number): Material {
-    return { id: uid("mt"), companyId: COMPANY_ID, projectId: p.id, name, unit, quantityUsed: used, quantityRequested: req, supplier, estimatedValue: val, status };
+  function tc(projectId: string, memberName: string, date: string, checkIn: string, checkOut: string, breakMinutes = 60): TimeCard {
+    return { id: uid("tc"), companyId: COMPANY_ID, projectId, memberName, date, checkIn, checkOut, breakMinutes, note: "" };
   }
-  function eq(p: Project, name: string, type: string, status: Equipment["status"], responsible: string, cond: string): Equipment {
-    return { id: uid("eq"), companyId: COMPANY_ID, projectId: p.id, name, type, responsible, conditionOut: cond, status, pickupDate: addDays(-3) };
+  function mat(projectId: string, name: string, unit: string, status: Material["status"], used: number, req: number, supplier: string, val: number): Material {
+    return { id: uid("mt"), companyId: COMPANY_ID, projectId, name, unit, quantityUsed: used, quantityRequested: req, supplier, estimatedValue: val, status };
   }
-  function checklist(p: Project, title: string, template: string, responsible: string, items: [string, boolean][]): Checklist {
-    return { id: uid("ck"), companyId: COMPANY_ID, projectId: p.id, title, template, responsible, date: today(), status: items.every((i) => i[1]) ? "concluido" : "aberto", items: items.map(([label, checked]) => ({ id: uid("cki"), label, checked })) };
+  function eq(projectId: string, name: string, type: string, status: Equipment["status"], responsible: string, cond: string): Equipment {
+    return { id: uid("eq"), companyId: COMPANY_ID, projectId, name, type, responsible, conditionOut: cond, status, pickupDate: "2026-05-20" };
   }
-  function inc(p: Project, title: string, category: string, severity: Incident["severity"], description: string, responsible: string, status: Incident["status"], solution: string): Incident {
-    return { id: uid("inc"), companyId: COMPANY_ID, projectId: p.id, title, category, severity, description, responsible, status, proposedSolution: solution, createdAt: new Date().toISOString(), resolvedAt: status === "resolvida" ? new Date().toISOString() : undefined };
+  function checklist(projectId: string, title: string, template: string, responsible: string, list: [string, boolean][]): Checklist {
+    return { id: uid("ck"), companyId: COMPANY_ID, projectId, title, template, responsible, date: "2026-06-02", status: list.every((i) => i[1]) ? "concluido" : "aberto", items: list.map(([label, checked]) => ({ id: uid("cki"), label, checked })) };
   }
-  function exp(p: Project, description: string, category: string, amount: number, responsible: string, rdoId?: string): Expense {
-    return { id: uid("exp"), companyId: COMPANY_ID, projectId: p.id, rdoId, date: today(), category, description, amount, paymentMethod: "PIX", responsible, hasReceipt: true };
+  function inc(projectId: string, title: string, category: string, severity: Incident["severity"], description: string, responsible: string, status: Incident["status"], solution: string): Incident {
+    return { id: uid("inc"), companyId: COMPANY_ID, projectId, title, category, severity, description, responsible, status, proposedSolution: solution, createdAt: new Date().toISOString(), resolvedAt: status === "resolvida" ? new Date().toISOString() : undefined };
   }
-  function ct(name: string, type: string, phone: string, email: string, company: string): Contact {
-    return { id: uid("ct"), companyId: COMPANY_ID, name, type, phone, whatsapp: phone, email, company };
+  function exp(projectId: string, description: string, category: string, amount: number, responsible: string, rdoId?: string): Expense {
+    return { id: uid("exp"), companyId: COMPANY_ID, projectId, rdoId, date: "2026-06-02", category, description, amount, paymentMethod: "PIX", responsible, hasReceipt: true };
+  }
+  function ct(name: string, type: string, phone: string, email: string, comp: string): Contact {
+    return { id: uid("ct"), companyId: COMPANY_ID, name, type, phone, whatsapp: phone, email, company: comp };
   }
 }
 
-// ---- RDOs detalhados ----
-function baseRdo(p: Project, number: number, dayOffset: number): Pick<DailyReport, "id" | "companyId" | "projectId" | "number" | "date" | "responsible" | "supervisor" | "createdAt" | "updatedAt"> {
-  const d = addDays(dayOffset);
+// ============ USINA — RDO Nº 001 (01/06/2026) ============
+function usinaBase(projectId: string, number: number, date: string) {
   return {
-    id: uid("rdo"),
-    companyId: COMPANY_ID,
-    projectId: p.id,
-    number,
-    date: d,
-    responsible: p.supervisor,
-    supervisor: p.supervisor,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    id: uid("rdo"), companyId: COMPANY_ID, projectId, number, date,
+    responsible: "Leone", supervisor: "Leone",
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   };
 }
 
-function rdoShopping1(p: Project): DailyReport {
+function prov(description: string, responsible: string, priority: Providencia["priority"]): Providencia {
+  return { description, responsible, priority };
+}
+
+function usinaRdo001(p: Project): DailyReport {
   return {
-    ...baseRdo(p, 1, -3),
-    arrival: "09:30",
-    departure: "17:00",
-    weather: "Ensolarado",
-    siteCondition: "Área liberada para trabalho",
+    ...usinaBase(p.id, 1, "2026-06-01"),
+    arrival: "07:30", departure: "17:00",
+    weather: "Ensolarado", siteCondition: "Pátio da Lidermac, Muribeca",
     team: [
-      { name: "Lucas Vital", role: "Supervisor", present: true },
-      { name: "William Costa", role: "Pintor", present: true },
-      { name: "Ítalo Ferreira", role: "Encarregado", present: true },
-      { name: "Geidson Souza", role: "Eletricista", present: true },
-      { name: "Hopkins Almeida", role: "Ajudante", present: true },
+      { name: "Leone", role: "Responsável de campo", present: true },
+      { name: "William Costa", role: "Lixador", present: true },
+      { name: "Geidson Souza", role: "Ajudante", present: true },
     ],
-    activities: [
-      { id: uid("act"), description: "Deslocamento à Castelo Locações para troca da lixadeira grande por duas lixadeiras pequenas", status: "concluida" },
-      { id: uid("act"), description: "Início do lixamento e preparação da superfície", status: "parcial", note: "Continua amanhã" },
-      { id: uid("act"), description: "Busca das tintas na Tech Tintas fornecidas pelo contratante", status: "concluida" },
-    ],
-    materials: [{ id: uid("it"), name: "Lixa grão 80", quantity: "20 un" }, { id: uid("it"), name: "Tinta acrílica industrial", quantity: "6 baldes" }],
-    materialsRequested: [{ id: uid("it"), name: "Extensão elétrica 20m", quantity: "2 un" }],
-    equipment: [{ id: uid("it"), name: "Lixadeira pequena", quantity: "2 un" }],
-    equipmentRequested: [{ id: uid("it"), name: "Jato com mangueira de 20m", quantity: "1 un" }],
+    activities: acts([
+      { d: "Lavagem da estrutura com água do caminhão pipa para remoção de sujeira superficial." },
+      { d: "Início do lixamento — remoção de tinta e oxidação com esmerilhadeira." },
+      { d: "Tratamento da estrutura metálica e acesso à parte superior com escada." },
+      { d: "Inspeção da calha/esteira da usina e organização do canteiro." },
+    ]),
+    materials: items(["Esmerilhadeira", "Lixadeira"]),
+    materialsRequested: items(["Tinta para pintura", "Espátula para limpeza"]),
+    equipment: items(["Caminhão pipa", "Guindaste PHD (apoio)"]),
+    equipmentRequested: items(["Jato / lavadora de pressão"]),
     occurrences: [
-      "Ao chegar na loja só havia uma extensão; William ficou de trazer outra.",
-      "Foi solicitado um jato com mangueira de pelo menos 20 metros e dois plugs para dividir o ponto de energia entre as lixadeiras.",
+      "Jato de água insuficiente: a lavagem com o caminhão pipa foi realizada, porém o jato mostrou-se insuficiente para a limpeza mais profunda da estrutura.",
+      "Ausência de tinta no local: a tinta não estava disponível no canteiro, o que impossibilitou o início da pintura após o lixamento.",
+      "Esteira: recomenda-se a retirada e posterior recolocação da esteira pela equipe da Lidermac, a fim de permitir limpeza mais profunda.",
     ],
-    risks: [],
-    impediments: ["Falta de extensão elétrica para a segunda lixadeira"],
-    clientRequests: ["Jato com mangueira de 20m e dois plugs"],
-    pending: ["Concluir lixamento e preparação da superfície", "Trazer segunda extensão de 20m"],
-    nextDayPlan: ["Finalizar preparação da superfície", "Iniciar aplicação de selador"],
+    risks: ["Trabalho em altura — uso obrigatório de EPIs e acesso seguro"],
+    impediments: ["Pintura não iniciada por ausência de tinta no local"],
+    clientRequests: ["Retirada e recolocação da esteira pela equipe Lidermac"],
+    providencias: [
+      prov("1 lixadeira adicional (1 por dupla — 4 colaboradores amanhã)", "Suprimentos RF", "Alta"),
+      prov("1 extensão elétrica adicional", "Suprimentos RF", "Média"),
+      prov("Espátula(s) para limpeza", "Suprimentos RF", "Média"),
+      prov("Jato / lavadora de pressão (limpeza profunda)", "Suprimentos RF", "Alta"),
+      prov("Retirada e recolocação da esteira para limpeza profunda", "Equipe Lidermac", "Média"),
+      prov("Providenciar tinta para a pintura", "Matheus", "Alta"),
+    ],
+    pending: ["Continuidade do lixamento", "Limpeza profunda da estrutura", "Início da pintura após disponibilização da tinta"],
+    nextDayPlan: [
+      "Comparecimento previsto de 4 colaboradores (incluindo Ítalo e, se possível, Hopkins).",
+      "Disponibilizar as ferramentas solicitadas — 1 lixadeira por dupla, extensão, espátulas e jato de pressão.",
+      "Continuidade do lixamento e da limpeza profunda da estrutura.",
+      "Iniciar a pintura assim que a tinta for disponibilizada por Matheus.",
+    ],
     executiveSummary:
-      "Equipe iniciou a preparação da superfície na usina de asfalto. Foi necessário trocar equipamentos na locadora e buscar as tintas. Pendências de extensão e jato com mangueira foram registradas.",
-    notes: "Contratante acompanhou parte dos serviços no período da manhã.",
+      "Primeiro dia de revitalização da usina de piche. Realizada a lavagem da estrutura com caminhão pipa e iniciado o lixamento/remoção de oxidação com esmerilhadeira. O jato de água mostrou-se insuficiente para limpeza profunda e a tinta não estava disponível no local, impossibilitando o início da pintura.",
+    notes: "Trabalho realizado em altura e em áreas internas, com atenção contínua aos EPIs e à organização do canteiro.",
     media: photos([
-      { phase: "antes", caption: "Superfície antes do lixamento" },
-      { phase: "durante", caption: "Equipe lixando a superfície" },
-      { phase: "durante", caption: "Tintas recebidas na Tech Tintas" },
-    ]).concat(video("Lixamento da ala leste em andamento")),
-    expenses: [],
-    signatures: [],
-    status: "assinado",
-    createMode: "voz",
-    rawInput:
-      "Hoje a equipe chegou por volta das 9h30. Estavam presentes William, Ítalo, Geidson, Hopkins e Lucas como supervisor. Antes de iniciar o serviço, a equipe foi até a Castelo Locações para trocar a lixadeira grande por duas lixadeiras pequenas. Ao chegar na loja só havia uma extensão, então William ficou de trazer outra. Na obra foi iniciado o lixamento e preparação da superfície. Também fui até a Tech Tintas buscar as tintas fornecidas pelo contratante. Foi solicitado um jato com mangueira de pelo menos 20 metros e dois plugs para dividir o ponto de energia entre as lixadeiras.",
-  };
-}
-
-function rdoShopping2(p: Project): DailyReport {
-  return {
-    ...baseRdo(p, 2, -2),
-    arrival: "07:30",
-    departure: "17:00",
-    weather: "Parcialmente nublado",
-    siteCondition: "Área liberada",
-    team: [
-      { name: "Lucas Vital", role: "Supervisor", present: true },
-      { name: "William Costa", role: "Pintor", present: true },
-      { name: "Hopkins Almeida", role: "Ajudante", present: true },
-      { name: "Rafael Nunes", role: "Servente", present: true },
-    ],
-    activities: [
-      { id: uid("act"), description: "Conclusão do lixamento da superfície", status: "concluida" },
-      { id: uid("act"), description: "Aplicação de selador acrílico", status: "concluida" },
-      { id: uid("act"), description: "Organização e limpeza técnica da área", status: "concluida" },
-    ],
-    materials: [{ id: uid("it"), name: "Selador acrílico", quantity: "4 galões" }],
-    materialsRequested: [],
-    equipment: [{ id: uid("it"), name: "Lixadeira pequena", quantity: "2 un" }, { id: uid("it"), name: "Compressor de ar" }],
-    equipmentRequested: [],
-    occurrences: ["Chuva leve no fim da tarde interrompeu a pintura externa por 40 minutos."],
-    risks: [],
-    impediments: [],
-    clientRequests: [],
-    pending: ["Iniciar pintura de acabamento da usina"],
-    nextDayPlan: ["Aplicar primeira demão de tinta industrial"],
-    executiveSummary: "Lixamento concluído e selador aplicado em toda a superfície. Limpeza técnica realizada. Chuva leve interrompeu brevemente os trabalhos externos.",
-    notes: "",
-    media: photos([
-      { phase: "durante", caption: "Aplicação do selador" },
-      { phase: "depois", caption: "Superfície selada e limpa" },
+      { phase: "antes", caption: "Vista geral (aérea) — estrutura da usina de piche no pátio da Lidermac, Muribeca." },
+      { phase: "durante", caption: "Lavagem — limpeza da estrutura com água do caminhão pipa." },
+      { phase: "durante", caption: "Lavagem (detalhe) — jato insuficiente para limpeza mais profunda." },
+      { phase: "durante", caption: "Início do lixamento — remoção de tinta/oxidação com esmerilhadeira." },
+      { phase: "durante", caption: "Lixamento — tratamento da estrutura metálica." },
+      { phase: "durante", caption: "Estrutura — acesso à parte superior com escada." },
+      { phase: "durante", caption: "Vista superior — inspeção da calha/esteira da usina." },
+      { phase: "durante", caption: "Apoio — guindaste (PHD) e equipe no pátio de manutenção." },
     ]),
     expenses: [],
     signatures: [],
     status: "aprovado",
-    createMode: "texto",
+    createMode: "voz",
   };
 }
 
-function rdoShopping3(p: Project): DailyReport {
+function usinaRdo002(p: Project): DailyReport {
   return {
-    ...baseRdo(p, 3, -1),
-    arrival: "07:30",
-    departure: "16:30",
-    weather: "Ensolarado",
-    siteCondition: "Área liberada",
+    ...usinaBase(p.id, 2, "2026-06-02"),
+    arrival: "09:30", departure: "17:00",
+    weather: "Parcialmente nublado", siteCondition: "Pátio da Lidermac, Muribeca",
     team: [
-      { name: "Lucas Vital", role: "Supervisor", present: true },
-      { name: "William Costa", role: "Pintor", present: true },
-      { name: "Hopkins Almeida", role: "Ajudante", present: true },
+      { name: "Leone", role: "Responsável de campo", present: true },
+      { name: "Ítalo Ferreira", role: "Lixador", present: true },
+      { name: "William Costa", role: "Lixador", present: true },
+      { name: "Geidson Souza", role: "Ajudante", present: true },
     ],
-    activities: [
-      { id: uid("act"), description: "Aplicação da primeira demão de tinta industrial", status: "concluida" },
-      { id: uid("act"), description: "Instalação dos plugs para divisão do ponto de energia", status: "concluida" },
-    ],
-    materials: [{ id: uid("it"), name: "Tinta acrílica industrial", quantity: "3 baldes" }],
-    materialsRequested: [],
-    equipment: [{ id: uid("it"), name: "Rolo e pincéis" }],
-    equipmentRequested: [],
-    occurrences: [],
-    risks: [],
-    impediments: [],
-    clientRequests: [],
-    pending: ["Aplicar segunda demão", "Revisão final de acabamento"],
-    nextDayPlan: ["Aplicar segunda demão de tinta", "Vistoria com contratante"],
-    executiveSummary: "Primeira demão de tinta industrial aplicada com sucesso. Plugs instalados e ponto de energia dividido entre as lixadeiras.",
-    notes: "",
-    media: photos([
-      { phase: "durante", caption: "Aplicação da primeira demão" },
-      { phase: "depois", caption: "Resultado da primeira demão" },
+    activities: acts([
+      { d: "Deslocamento para troca de ferramenta — antes do serviço, a equipe foi até a Castelos Locações para trocar a lixadeira grande por duas lixadeiras pequenas, buscando maior produtividade na obra." },
+      { d: "Retirada das ferramentas — foram retiradas duas lixadeiras pequenas e uma extensão; como havia apenas uma extensão, a equipe ficou de levar sua própria extensão." },
+      { d: "A equipe chegou à obra por volta de 9h30, iniciando o lixamento e o tratamento da estrutura." },
+      { d: "Deslocamento até a Tech Tintas para buscar as tintas fornecidas pelo contratante e levá-las ao local da execução." },
+      { d: "Continuidade do lixamento — execução em pontos superiores, laterais, internos e inferiores da estrutura, com atuação simultânea da equipe em diferentes frentes." },
     ]),
-    expenses: [],
-    signatures: [],
-    status: "pronto_revisao",
-    createMode: "perguntas",
-  };
-}
-
-function rdoSolar1(p: Project): DailyReport {
-  return {
-    ...baseRdo(p, 1, -2),
-    arrival: "08:00",
-    departure: "16:00",
-    weather: "Ensolarado",
-    siteCondition: "Telhado liberado para acesso",
-    team: [
-      { name: "Geidson Souza", role: "Eletricista", present: true },
-      { name: "Rafael Nunes", role: "Ajudante", present: true },
+    materials: items(["Lixadeiras pequenas (2)", "Tintas (fornecidas pelo contratante)"]),
+    materialsRequested: items(["Plugs/divisores de energia (2)", "Extensão adicional"]),
+    equipment: items(["Lixadeira pequena (dupla 1)", "Lixadeira pequena (dupla 2)"]),
+    equipmentRequested: items(["Jato / lavadora com mangueira de 20m"]),
+    occurrences: [
+      "Extensão insuficiente na locadora: ao chegar à Castelos Locações, havia apenas uma extensão disponível, exigindo complementação pela própria equipe.",
+      "Necessidade de divisão do ponto de energia: será necessário comprar dois plugs/divisores para permitir o uso simultâneo das lixadeiras.",
+      "Lavagem da estrutura: a equipe solicitou jato/lavadora com mangueira de pelo menos 20 m para lavagem efetiva da usina de asfalto.",
+      "Trabalho em altura e em área interna: as fotos evidenciam execução em pontos elevados e áreas internas da estrutura, exigindo atenção contínua aos EPIs, acesso seguro, cabos e organização do canteiro.",
     ],
-    activities: [
-      { id: uid("act"), description: "Levantamento e medição do telhado para fixação dos módulos", status: "concluida" },
-      { id: uid("act"), description: "Marcação dos pontos de fixação da estrutura", status: "concluida" },
+    risks: ["Trabalho em altura e em área interna — atenção a EPIs, acesso seguro e cabos"],
+    impediments: ["Uso simultâneo das lixadeiras limitado pela falta de plugs/divisores"],
+    clientRequests: ["Jato/lavadora com mangueira de pelo menos 20m para lavagem efetiva"],
+    providencias: [
+      prov("Disponibilizar jato/lavadora com mangueira de pelo menos 20 m para lavagem efetiva.", "Suprimentos RF / Lidermac", "Alta"),
+      prov("Comprar 2 plugs/divisores para alimentar as lixadeiras de forma simultânea.", "Suprimentos RF", "Alta"),
+      prov("Confirmar extensão elétrica adequada para uso simultâneo das duas lixadeiras.", "Suprimentos RF", "Média"),
+      prov("Organizar cabos, área de acesso e pontos de apoio durante o lixamento.", "Equipe RF", "Média"),
+      prov("Dar continuidade ao lixamento e preparar as áreas para pintura conforme liberação técnica.", "Equipe RF", "Alta"),
     ],
-    materials: [],
-    materialsRequested: [{ id: uid("it"), name: "Módulo fotovoltaico 550W", quantity: "82 un" }],
-    equipment: [{ id: uid("it"), name: "Furadeira de impacto" }],
-    equipmentRequested: [],
-    occurrences: ["Fornecedor informou atraso de 5 dias na entrega dos módulos fotovoltaicos."],
-    risks: ["Trabalho em altura — uso obrigatório de cinto de segurança"],
-    impediments: ["Aguardando entrega dos módulos para iniciar a montagem"],
-    clientRequests: [],
-    pending: ["Iniciar montagem da estrutura após chegada dos módulos"],
-    nextDayPlan: ["Acionar fornecedor alternativo"],
-    executiveSummary: "Levantamento e marcação do telhado concluídos. Obra aguardando entrega dos módulos fotovoltaicos, com atraso reportado pelo fornecedor.",
-    notes: "",
-    media: photos([{ phase: "antes", caption: "Telhado antes da instalação" }]),
+    pending: ["Lixamento das áreas pendentes da estrutura metálica", "Lavagem efetiva da estrutura", "Início da pintura nas áreas liberadas"],
+    nextDayPlan: [
+      "Manter efetivo operacional com 4 colaboradores, se possível, para dar continuidade às frentes simultâneas.",
+      "Concluir o lixamento e o tratamento das áreas pendentes da estrutura metálica.",
+      "Realizar lavagem efetiva da estrutura com jato/lavadora de pressão e mangueira longa, caso disponibilizado.",
+      "Organizar pontos de energia, plugs e extensões para uso seguro das lixadeiras.",
+      "Avaliar início da pintura nas áreas liberadas e devidamente preparadas.",
+    ],
+    executiveSummary:
+      "Segundo dia de obra com a equipe atuando simultaneamente em diferentes frentes (pontos superiores, laterais, internos e inferiores). Houve troca de ferramentas na locadora, busca das tintas na Tech Tintas e continuidade do lixamento e tratamento da estrutura metálica.",
+    notes: "Necessária a divisão do ponto de energia (2 plugs) e jato com mangueira de 20m para a próxima lavagem.",
+    media: photos([
+      { phase: "durante", caption: "Vista geral — estrutura da usina de piche com equipe em execução do lixamento no segundo dia de obra." },
+      { phase: "durante", caption: "Vista lateral — estrutura metálica da usina e área de execução." },
+      { phase: "durante", caption: "Lixamento superior — uso de lixadeira na parte alta da estrutura." },
+      { phase: "durante", caption: "Lixamento interno — tratamento de chapa e pontos de oxidação." },
+      { phase: "durante", caption: "Execução simultânea — equipe atuando em frentes distintas." },
+      { phase: "durante", caption: "Vista geral — avanço do lixamento e organização da frente de trabalho." },
+      { phase: "durante", caption: "Tratamento da estrutura — atuação em parte inferior e superior." },
+      { phase: "durante", caption: "Área de execução — equipe, ferramentas e estrutura em operação." },
+      { phase: "durante", caption: "Vista superior — inspeção da calha/esteira e pontos de lixamento." },
+    ]),
     expenses: [],
     signatures: [],
     status: "enviado",
-    createMode: "perguntas",
+    createMode: "voz",
   };
 }
 
-function rdoDrywall1(p: Project): DailyReport {
-  return {
-    ...baseRdo(p, 1, -2),
-    arrival: "07:00",
-    departure: "18:00",
-    weather: "Indiferente (obra interna)",
-    siteCondition: "Obra interna",
-    team: [
-      { name: "Ítalo Ferreira", role: "Encarregado", present: true },
-      { name: "Rafael Nunes", role: "Servente", present: true },
-    ],
-    activities: [
-      { id: uid("act"), description: "Pintura de acabamento dos consultórios", status: "concluida" },
-      { id: uid("act"), description: "Limpeza final e organização", status: "concluida" },
-      { id: uid("act"), description: "Vistoria final acompanhada pelo cliente", status: "concluida" },
-    ],
-    materials: [{ id: uid("it"), name: "Placa de drywall", quantity: "120 un" }],
-    materialsRequested: [],
-    equipment: [],
-    equipmentRequested: [],
-    occurrences: [],
-    risks: [],
-    impediments: [],
-    clientRequests: [],
-    pending: [],
-    nextDayPlan: [],
-    executiveSummary: "Obra finalizada. Pintura de acabamento concluída, limpeza final realizada e vistoria aprovada pelo cliente. Termo de entrega assinado.",
-    notes: "Cliente aprovou a entrega sem ressalvas.",
-    media: photos([
-      { phase: "antes", caption: "Consultório antes da reforma" },
-      { phase: "depois", caption: "Consultório finalizado" },
-      { phase: "depois", caption: "Recepção entregue" },
-    ]),
-    expenses: [],
-    signatures: [
-      { id: uid("sig"), role: "supervisor", name: "Ítalo Ferreira", dataUrl: "", signedAt: new Date().toISOString(), accepted: true },
-      { id: uid("sig"), role: "cliente", name: "OdontoCenter Ltda.", dataUrl: "", signedAt: new Date().toISOString(), accepted: true },
-    ],
-    status: "aprovado",
-    createMode: "manual",
-  };
+// ============ DRYWALL — 17 RDOs (12/05 a 28/05/2026) ============
+interface DrywallDay {
+  trecho: string;
+  atividades: string[];
+  resultado: string;
+  ocorrencias?: string[];
+  proximo?: string[];
 }
 
-// ---- datas ----
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
+function buildDrywallReports(p: Project): DailyReport[] {
+  const days: DrywallDay[] = [
+    { trecho: "Mobilização e isolamento", atividades: ["Mobilização da equipe e montagem do canteiro noturno.", "Isolamento e sinalização da área de trabalho no corredor principal.", "Inspeção e posicionamento da plataforma elevatória tipo tesoura JLG."], resultado: "Área isolada e canteiro montado; plataforma liberada para uso." },
+    { trecho: "Mapeamento estrutural", atividades: ["Mapeamento dos elementos a desmontar entre as treliças.", "Marcação dos pontos de corte e remoção.", "Conferência dos pontos de energia e iluminação provisória."], resultado: "Plano de desmontagem definido e pontos de corte marcados." },
+    { trecho: "1ª treliça — forro", atividades: ["Remoção do forro de gesso/drywall na 1ª treliça.", "Retirada e segregação dos resíduos gerados.", "Remoção de luminárias da área de intervenção."], resultado: "Forro da 1ª treliça removido e resíduos segregados." },
+    { trecho: "1ª treliça — perfis", atividades: ["Corte e remoção de perfis metálicos remanescentes.", "Desmontagem dos elementos de fechamento laterais.", "Organização e descida de material."], resultado: "Perfis e fechamentos da 1ª treliça desmontados." },
+    { trecho: "Entre 1ª e 2ª treliça", atividades: ["Remoção do policarbonato entre a 1ª e a 2ª treliça.", "Desmontagem em altura com plataforma JLG.", "Retirada de elementos remanescentes do sistema antigo."], resultado: "Trecho entre 1ª e 2ª treliça liberado." },
+    { trecho: "2ª treliça — forro", atividades: ["Remoção integral do forro de gesso/drywall na 2ª treliça.", "Remoção das luminárias existentes.", "Segregação dos resíduos."], resultado: "Forro da 2ª treliça removido em ambos os lados." },
+    { trecho: "2ª treliça — perfis", atividades: ["Cortes estruturais e remoção de perfis metálicos.", "Retirada de elementos de fechamento dos dois lados.", "Limpeza da área."], resultado: "Perfis da 2ª treliça desmontados; área limpa." },
+    { trecho: "Apoio e logística", atividades: ["Recebimento e conferência de materiais de apoio.", "Manutenção preventiva da plataforma JLG.", "Reorganização do isolamento da área."], resultado: "Logística e equipamentos prontos para a próxima etapa.", ocorrencias: ["Necessário reforço de iluminação provisória no trecho central."] },
+    { trecho: "Entre 2ª e 3ª treliça", atividades: ["Retirada integral do policarbonato entre a 2ª e a 3ª treliça.", "Remoção de perfis metálicos vermelhos do caranguejo.", "Desmontagem em altura com plataforma elevatória."], resultado: "Policarbonato e perfis do trecho removidos." },
+    { trecho: "3ª treliça — forro", atividades: ["Remoção do forro de gesso/drywall na 3ª treliça.", "Remoção de luminárias.", "Segregação e descida de resíduos."], resultado: "Forro da 3ª treliça removido." },
+    { trecho: "3ª treliça — perfis", atividades: ["Cortes e remoção de perfis metálicos da 3ª treliça.", "Desmontagem dos fechamentos laterais.", "Limpeza e organização."], resultado: "Perfis da 3ª treliça desmontados." },
+    { trecho: "Inspeção parcial", atividades: ["Inspeção do trecho desmontado com a fiscalização.", "Ajustes pontuais e remoção de remanescentes.", "Registro fotográfico do avanço."], resultado: "Trecho aprovado pela fiscalização para sequência." },
+    { trecho: "Reforço e segurança", atividades: ["Verificação de travamentos e EPIs.", "Reforço do isolamento e sinalização.", "Continuidade da remoção de fechamentos."], resultado: "Condições de segurança reforçadas; avanço mantido." },
+    { trecho: "Limpeza geral", atividades: ["Limpeza geral do trecho intervindo.", "Retirada e destinação de resíduos acumulados.", "Organização de materiais reaproveitáveis."], resultado: "Trecho limpo e resíduos destinados." },
+    { trecho: "Preparação 3ª–4ª treliça", atividades: ["Marcação dos cortes entre a 3ª e a 4ª (última) treliça.", "Posicionamento da plataforma e iluminação.", "Início da desmontagem dos fechamentos."], resultado: "Trecho 3ª–4ª preparado para desmontagem do forro." },
+    { trecho: "Desmontagem Estrutural do Mall",
+      atividades: ["Remoção de perfis metálicos vermelhos do caranguejo.", "Retirada integral do policarbonato entre a 2ª e a 3ª treliça.", "Cortes estruturais e desmontagem em altura com plataforma elevatória tipo tesoura.", "Retirada de elementos remanescentes do sistema antigo e limpeza da área."],
+      resultado: "Durante o período executado foram realizados cortes estruturais, desmontagem em altura, remoção de perfis metálicos, retirada de elementos remanescentes do sistema antigo e limpeza da área. Ao final dos trabalhos o trecho compreendido entre a 2ª e a 3ª treliça encontrava-se totalmente desmontado e liberado para continuidade da obra." },
+    { trecho: "Corredor Principal do Shopping",
+      atividades: ["Mobilização da equipe e posicionamento da plataforma elevatória tipo tesoura JLG.", "Remoção integral do forro de gesso/drywall compreendido entre a 3ª e a 4ª (última) treliça da estrutura central.", "Continuidade da desmontagem dos elementos de fechamento existentes nos dois lados do corredor principal.", "Retirada e segregação dos resíduos gerados pela desmontagem.", "Remoção das luminárias existentes na área de intervenção, em apoio à operação do shopping."],
+      resultado: "Ao término da jornada foi concluída a retirada de todo o gesso/drywall compreendido entre a 3ª e a última treliça em ambos os lados da estrutura. Também foram removidas as luminárias existentes na área afetada, liberando o trecho para continuidade das próximas etapas de desmontagem e adequação estrutural." },
+  ];
+
+  return days.map((d, i) => {
+    const number = i + 1;
+    const date = addDays("2026-05-12", i);
+    const phaseSeq: MediaItem["phase"][] = i === 0 ? ["antes", "durante"] : ["durante", "durante", "depois"];
+    return {
+      id: uid("rdo"), companyId: COMPANY_ID, projectId: p.id, number, date,
+      responsible: "Alan", supervisor: "Alan",
+      arrival: "23:00", departure: "03:00",
+      weather: "Indiferente (obra interna / noturna)", siteCondition: d.trecho,
+      team: [
+        { name: "Alan", role: "Encarregado", present: true },
+        { name: "Equipe de desmontagem", role: "Montadores", present: true },
+      ],
+      activities: acts(d.atividades.map((x) => ({ d: x }))),
+      materials: items(["Discos de corte"]),
+      materialsRequested: [],
+      equipment: items(["Plataforma elevatória tipo tesoura JLG"]),
+      equipmentRequested: [],
+      occurrences: d.ocorrencias || [],
+      risks: ["Trabalho em altura sobre o corredor — isolamento e EPIs obrigatórios"],
+      impediments: [],
+      clientRequests: [],
+      pending: number >= 17 ? ["Continuidade da desmontagem e adequação estrutural nos próximos trechos"] : ["Continuidade da desmontagem no próximo trecho"],
+      nextDayPlan: d.proximo || ["Dar sequência à desmontagem do próximo trecho em horário noturno."],
+      executiveSummary: d.resultado,
+      notes: `Execução em horário noturno (23h às 03h) para não interferir na operação do shopping. Trecho: ${d.trecho}.`,
+      media: photos(
+        phaseSeq.map((phase, k) => ({ phase, caption: `${d.trecho} — registro ${k + 1} (desmontagem noturna)` })),
+      ),
+      expenses: [],
+      signatures: [],
+      status: number >= 17 ? "pronto_revisao" : "aprovado",
+      createMode: number % 3 === 0 ? "perguntas" : number % 2 === 0 ? "texto" : "voz",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as DailyReport;
+  });
 }
-function addDays(n: number): string {
-  const d = new Date();
+
+function addDays(iso: string, n: number): string {
+  const d = new Date(iso + "T12:00:00");
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 }
