@@ -14,6 +14,14 @@ export interface Achievement {
   unlocked: boolean;
 }
 
+export interface LevelStep {
+  level: number;
+  title: string;
+  xpRequired: number; // XP acumulado necessário para alcançar o nível
+  reached: boolean;
+  current: boolean;
+}
+
 export interface GamificationResult {
   xp: number;
   level: number;
@@ -25,6 +33,22 @@ export interface GamificationResult {
   totalRdos: number;
   achievements: Achievement[];
   unlockedCount: number;
+  ladder: LevelStep[];
+}
+
+// Como o XP é ganho (exibido na tela para o usuário).
+export const XP_RULES: { label: string; xp: number }[] = [
+  { label: "RDO registrado", xp: 10 },
+  { label: "Obra cadastrada", xp: 15 },
+  { label: "RDO aprovado pelo contratante", xp: 5 },
+  { label: "Assinatura coletada", xp: 5 },
+  { label: "Relatório final gerado", xp: 25 },
+  { label: "Foto adicionada", xp: 1 },
+];
+
+// XP acumulado necessário para alcançar o início de um nível.
+export function xpToReachLevel(level: number): number {
+  return (100 * (level - 1) * level) / 2;
 }
 
 const LEVEL_TITLES = [
@@ -104,11 +128,18 @@ export function computeGamification(
     ach("streak", "Sequência de fogo", "5 dias seguidos com RDO registrado", "⚡", streak, 5),
   ];
 
+  const ladder: LevelStep[] = LEVEL_TITLES.map((title, i) => {
+    const lvl = i + 1;
+    const xpRequired = xpToReachLevel(lvl);
+    return { level: lvl, title, xpRequired, reached: xp >= xpRequired, current: lvl === level };
+  });
+
   return {
     xp, level, levelTitle: levelTitle(level),
     xpIntoLevel, xpForNext, pctToNext,
     streak, totalRdos,
     achievements,
     unlockedCount: achievements.filter((a) => a.unlocked).length,
+    ladder,
   };
 }

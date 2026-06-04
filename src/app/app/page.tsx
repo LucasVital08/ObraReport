@@ -232,9 +232,6 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Gamificação: nível, XP, ofensiva e conquistas */}
-      <GamificationCard />
-
       <div className="grid lg:grid-cols-3 gap-5">
         {/* Obras ativas */}
         <div className="lg:col-span-2 space-y-5">
@@ -303,6 +300,9 @@ export default function DashboardPage() {
           </Link>
         </div>
       </Card>
+
+      {/* Gamificação (nível, XP, ofensiva, conquistas e escada de níveis) */}
+      <GamificationCard />
     </div>
   );
 }

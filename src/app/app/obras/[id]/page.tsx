@@ -62,7 +62,8 @@ export default function ObraDetailPage() {
   ];
   const clientTabIds = ["visao", "rdos", "timeline", "fotos", "ocorrencias", "final"];
   const tabs = isClient ? allTabs.filter((t) => clientTabIds.includes(t.id)) : allTabs;
-  const timelineItems = buildFinalReport(project, reports).linha_do_tempo;
+  let timelineItems: { date: string; resumo: string }[] = [];
+  try { timelineItems = buildFinalReport(project, reports).linha_do_tempo; } catch { timelineItems = []; }
 
   return (
     <div>
