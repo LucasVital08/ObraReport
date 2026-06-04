@@ -54,7 +54,7 @@ export default function GastosPage() {
       </div>
 
       {filtered.length > 0 && (
-        <div className="grid lg:grid-cols-2 gap-5 mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
           <Card className="p-4">
             <h3 className="font-semibold mb-2">Gastos por categoria</h3>
             <div className="h-64">

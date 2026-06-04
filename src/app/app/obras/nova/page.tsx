@@ -40,7 +40,7 @@ export default function NovaObraPage() {
       <PageHeader title="Nova obra" description="Cadastre os dados do projeto" backHref="/app/obras" />
       <Card className="max-w-2xl">
         <CardHeader title="Dados da obra" icon={<Building2 size={18} />} />
-        <div className="p-4 grid sm:grid-cols-2 gap-4">
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2"><Field label="Nome da obra"><Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Ex.: Reforma Loja Centro" /></Field></div>
           <Field label="Cliente / contratante"><Input value={form.client} onChange={(e) => set("client", e.target.value)} /></Field>
           <Field label="Status">

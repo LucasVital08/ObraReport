@@ -71,7 +71,7 @@ export default function RelatorioFinalPage() {
       <PageHeader title="Relatório Final da Obra" description={project.name} backHref={`/app/obras/${id}`}
         action={<div className="flex gap-2"><Button variant="outline" onClick={shareLink}><Link2 size={16} /> Link</Button><Button onClick={generate}><FileDown size={16} /> Gerar PDF</Button></div>} />
 
-      <div className="grid lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
           <Card className="p-5 bg-gradient-to-br from-brand to-brand-dark text-white border-0">
             <div className="flex items-center gap-2 mb-2"><Sparkles size={18} /> <span className="font-semibold">Resumo gerado pela IA</span></div>
@@ -89,7 +89,7 @@ export default function RelatorioFinalPage() {
             <Timeline items={ai.linha_do_tempo} />
           </Card>
 
-          <div className="grid sm:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Card>
               <CardHeader title="Principais serviços" icon={<Hammer size={18} />} />
               <div className="p-4 space-y-1.5 text-sm">{ai.principais_servicos.map((s, i) => <p key={i} className="flex gap-2"><CheckCircle2 size={14} className="text-success shrink-0 mt-0.5" /> {s}</p>)}</div>

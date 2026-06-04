@@ -30,7 +30,7 @@ export default function ContatosPage() {
       {filtered.length === 0 ? (
         <Card><EmptyState title="Nenhum contato" action={<Button onClick={() => setOpen(true)}><Plus size={16} /> Adicionar</Button>} /></Card>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((c) => (
             <Card key={c.id} className="p-4 group">
               <div className="flex items-start gap-3">

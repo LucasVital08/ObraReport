@@ -22,7 +22,7 @@ export default function EquipePage() {
       {team.length === 0 ? (
         <Card><EmptyState icon={<Users size={40} />} title="Nenhum colaborador" action={<Button onClick={() => setOpen(true)}><Plus size={16} /> Adicionar membro</Button>} /></Card>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {team.map((m) => {
             const proj = projects.find((p) => p.id === m.projectId);
             return (

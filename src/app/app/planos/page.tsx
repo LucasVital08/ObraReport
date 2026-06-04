@@ -43,7 +43,7 @@ export default function PlanosPage() {
         </div>
       </Card>
 
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         {PLANS.map((p) => {
           const Icon = ICONS[p.id];
           const current = company.plan === p.id;

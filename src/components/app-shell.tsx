@@ -201,7 +201,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 pb-24 lg:pb-6 max-w-6xl w-full mx-auto">{children}</main>
+        <main className="flex-1 min-w-0 p-4 sm:p-6 pb-24 lg:pb-6 max-w-6xl w-full mx-auto">{children}</main>
       </div>
 
       {/* Bottom nav mobile */}

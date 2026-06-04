@@ -44,7 +44,7 @@ export default function ChecklistsPage() {
       {checklists.length === 0 ? (
         <Card><EmptyState icon={<ClipboardCheck size={40} />} title="Nenhum checklist" action={<Button onClick={() => setOpen(true)}><Plus size={16} /> Criar</Button>} /></Card>
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {checklists.map((c) => {
             const done = c.items.filter((i) => i.checked).length;
             const pct = c.items.length ? Math.round((done / c.items.length) * 100) : 0;

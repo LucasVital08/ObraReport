@@ -97,7 +97,7 @@ export default function ObraDetailPage() {
             </Select>
           )}
         </div>
-        <div className="p-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
           <Info icon={<User size={15} />} label="Cliente" value={project.client} />
           <Info icon={<MapPin size={15} />} label="Endereço" value={project.address || "—"} />
           <Info icon={<User size={15} />} label="Resp. técnico" value={project.technicalLead || "—"} />

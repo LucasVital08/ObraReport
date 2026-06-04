@@ -163,7 +163,7 @@ function ModeSelector({ onSelect, onDuplicate }: { onSelect: (m: "voz" | "texto"
     { id: "manual", icon: PenLine, title: "Criar manualmente", desc: "Preencha todos os campos no formulário tradicional." },
   ];
   return (
-    <div className="grid sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {modes.map((m) => {
         const Icon = m.icon;
         return (

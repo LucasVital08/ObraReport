@@ -62,7 +62,7 @@ export default function DashboardPage() {
           <Stat href="/app/obras" label="Fotos da obra" value={myPhotos} icon={<Images size={16} />} tone="success" />
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 space-y-5">
             <Card>
               <CardHeader title="Minhas obras" icon={<Building2 size={18} />}
@@ -194,7 +194,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Painel por obra */}
-          <div className="mt-4 grid sm:grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {panelProjects.map((p) => {
               const rdoCount = reports.filter((r) => r.projectId === p.id).length;
               const gasto = expenses.filter((e) => e.projectId === p.id).reduce((a, e) => a + e.amount, 0);
@@ -232,7 +232,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Obras ativas */}
         <div className="lg:col-span-2 space-y-5">
           <Card>

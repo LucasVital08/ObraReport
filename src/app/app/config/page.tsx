@@ -36,7 +36,7 @@ export default function ConfigPage() {
       {node}
       <PageHeader title="Configurações" description="Empresa, conta e preferências" />
 
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card>
           <CardHeader title="Empresa" icon={<Building2 size={18} />} />
           <div className="p-4 space-y-4">

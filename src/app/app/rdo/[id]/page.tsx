@@ -102,7 +102,7 @@ export default function RdoViewPage() {
         )}
       </Card>
 
-      <div className="grid lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
           {report.rawInput && (
             <Card className="p-4 bg-brand-soft border-brand/20">

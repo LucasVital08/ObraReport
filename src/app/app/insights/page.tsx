@@ -56,7 +56,7 @@ export default function InsightsPage() {
         <Stat label="Ocorrências abertas" value={incidents.filter((i) => i.status !== "resolvida").length} icon={<AlertTriangle size={16} />} tone="danger" />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card className="p-4">
           <h3 className="font-semibold mb-3">RDOs por obra</h3>
           <div className="h-60"><ResponsiveContainer width="100%" height="100%">

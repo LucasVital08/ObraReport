@@ -88,7 +88,7 @@ export default function LandingPage() {
       {/* Dores */}
       <section className="max-w-6xl mx-auto px-4 py-16">
         <h2 className="text-2xl sm:text-3xl font-bold text-center">Cansado de RDO feito no improviso?</h2>
-        <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[
             "RDO feito no WhatsApp", "Fotos perdidas na galeria", "Falta de comprovação do serviço",
             "Cliente pedindo prestação de contas", "Gastos desorganizados", "Equipe sem controle",
@@ -107,7 +107,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 py-16">
           <h2 className="text-2xl sm:text-3xl font-bold text-center">A solução completa para o diário de obra</h2>
           <p className="text-center text-muted mt-2 max-w-xl mx-auto">Tudo o que você precisa para documentar, controlar e comprovar a execução da obra.</p>
-          <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               [Mic, "RDO por voz", "Fale o que aconteceu e a IA monta o relatório."],
               [MessageSquareText, "RDO por IA com texto", "Cole qualquer anotação e receba um RDO estruturado."],
@@ -132,7 +132,7 @@ export default function LandingPage() {
       {/* Recursos / diferenciais */}
       <section id="recursos" className="max-w-6xl mx-auto px-4 py-16">
         <h2 className="text-2xl sm:text-3xl font-bold text-center">Por que escolher o ObraReport IA</h2>
-        <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             [ShieldCheck, "Feito para o Brasil", "Linguagem simples, do jeito que se fala na obra."],
             [Smartphone, "Funciona no celular", "Mobile-first, instalável como app (PWA)."],
@@ -161,7 +161,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 py-16">
           <h2 className="text-2xl sm:text-3xl font-bold text-center">Planos para cada tamanho de operação</h2>
           <p className="text-center text-muted mt-2">Comece grátis. Inteligência artificial já a partir do plano Básico.</p>
-          <div className="mt-10 grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
             {PLANS.map((p) => {
               const isFree = p.priceMonthly === null;
               return (

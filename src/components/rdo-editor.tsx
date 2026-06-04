@@ -27,12 +27,12 @@ export function RdoEditor({ draft, onChange, teamSuggestions = [] }: Props) {
   const tone = completeness.score >= 80 ? "success" : completeness.score >= 60 ? "brand" : "warning";
 
   return (
-    <div className="grid lg:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div className="lg:col-span-2 space-y-5">
         {/* Dados gerais */}
         <Card>
           <CardHeader title="Dados gerais" icon={<FileText size={18} />} />
-          <div className="p-4 grid sm:grid-cols-2 gap-4">
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Data"><Input type="date" value={draft.date} onChange={(e) => onChange({ date: e.target.value })} /></Field>
             <Field label="Responsável"><Input value={draft.responsible} onChange={(e) => onChange({ responsible: e.target.value })} /></Field>
             <Field label="Horário de chegada">
@@ -102,7 +102,7 @@ export function RdoEditor({ draft, onChange, teamSuggestions = [] }: Props) {
         </Card>
 
         {/* Materiais e equipamentos */}
-        <div className="grid sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <ItemListCard title="Materiais utilizados" icon={<Package size={18} />} items={draft.materials} onSet={(materials) => onChange({ materials })} />
           <ItemListCard title="Equipamentos utilizados" icon={<Wrench size={18} />} items={draft.equipment} onSet={(equipment) => onChange({ equipment })} />
         </div>

@@ -47,7 +47,7 @@ export default function AdminPage() {
         <Stat label="Sessões de IA" value={aiSessions} icon={<Sparkles size={16} />} tone="brand" hint={`${voiceSessions} por voz`} />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card>
           <CardHeader title="Assinatura e plano" icon={<Building2 size={18} />} />
           <div className="p-4 space-y-3">
