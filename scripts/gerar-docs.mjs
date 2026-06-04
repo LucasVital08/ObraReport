@@ -13,7 +13,6 @@ const OUT_DIR = join(__dirname, "..", "docs");
 
 // ---- Paleta (igual src/lib/pdf.ts) ----
 const BRAND = [244, 114, 11];
-const BRAND_DARK = [201, 90, 6];
 const GRAPHITE = [43, 49, 59];
 const MUTED = [120, 128, 138];
 const NAVY = [31, 61, 99];

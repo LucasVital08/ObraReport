@@ -1,14 +1,19 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { Card, CardHeader, Stat, Button, EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/brand";
 import { ProjectStatusBadge, RdoStatusBadge } from "@/components/status";
-import { formatBRL, formatDateBR, todayISO } from "@/lib/utils";
+import { formatBRL, formatDateBR, todayISO, diffDays } from "@/lib/utils";
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from "recharts";
 import {
   Building2, FileText, PenLine, ListChecks, Wallet, AlertTriangle, Images,
   Mic, MessageSquareText, FileCheck2, Sparkles, ArrowRight, Users, Clock,
+  TrendingUp, CalendarDays, CalendarClock,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -108,6 +113,23 @@ export default function DashboardPage() {
     );
   }
 
+  // Série dos últimos 14 dias para o gráfico de atividade de RDOs.
+  const days14 = (() => {
+    const arr: { label: string; value: number }[] = [];
+    const today = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      arr.push({
+        label: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
+        value: reports.filter((r) => r.date === iso).length,
+      });
+    }
+    return arr;
+  })();
+  const panelProjects = (activeProjects.length ? activeProjects : projects).slice(0, 4);
+
   return (
     <div className="space-y-6">
       <div>
@@ -133,6 +155,81 @@ export default function DashboardPage() {
         <Stat label="Presentes hoje" value={presentToday} icon={<Users size={16} />} tone="info" />
         <Stat label="Fotos / Vídeos" value={`${totalPhotos} / ${totalVideos}`} icon={<Images size={16} />} tone="brand" />
       </div>
+
+      {/* Acompanhamento das obras: gráfico de atividade + painel por obra */}
+      {projects.length > 0 && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="h-9 w-9 rounded-xl bg-brand-soft text-brand-dark flex items-center justify-center"><TrendingUp size={18} /></span>
+              <div>
+                <h3 className="font-semibold leading-tight">Atividade das obras</h3>
+                <p className="text-xs text-muted">RDOs registrados nos últimos 14 dias</p>
+              </div>
+            </div>
+            <Link href="/app/insights"><Button variant="ghost" size="sm">Ver insights <ArrowRight size={14} /></Button></Link>
+          </div>
+
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={days14} margin={{ top: 8, right: 6, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="rdoArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f4720b" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#f4720b" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(120,128,138,0.18)" />
+                <XAxis dataKey="label" fontSize={10} tickLine={false} axisLine={false} interval={1} />
+                <YAxis fontSize={10} allowDecimals={false} tickLine={false} axisLine={false} width={28} />
+                <Tooltip
+                  cursor={{ stroke: "#f4720b", strokeOpacity: 0.2 }}
+                  contentStyle={{ borderRadius: 12, border: "1px solid rgba(120,128,138,0.25)", fontSize: 12 }}
+                  formatter={(v: unknown) => [`${Number(v)} RDO(s)`, "Registrados"]}
+                />
+                <Area type="monotone" dataKey="value" stroke="#f4720b" strokeWidth={2.2} fill="url(#rdoArea)" dot={{ r: 2.5, fill: "#f4720b" }} activeDot={{ r: 4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Painel por obra */}
+          <div className="mt-4 grid sm:grid-cols-2 gap-3">
+            {panelProjects.map((p) => {
+              const rdoCount = reports.filter((r) => r.projectId === p.id).length;
+              const gasto = expenses.filter((e) => e.projectId === p.id).reduce((a, e) => a + e.amount, 0);
+              const dias = Math.max(0, diffDays(p.startDate, todayISO()));
+              const total = Math.max(1, Math.abs(diffDays(p.startDate, p.realEndDate || p.expectedEndDate)));
+              const pct = Math.min(100, Math.round((dias / total) * 100));
+              return (
+                <Link key={p.id} href={`/app/obras/${p.id}`}
+                  className="rounded-xl border border-border p-3.5 hover:border-brand transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="h-8 w-8 rounded-lg text-white flex items-center justify-center shrink-0" style={{ background: p.coverColor }}><Building2 size={15} /></span>
+                      <p className="font-semibold text-sm truncate">{p.name.split("—")[0].trim()}</p>
+                    </div>
+                    <ProjectStatusBadge status={p.status} />
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    <PanelStat icon={<CalendarDays size={13} />} label="Início" value={formatDateBR(p.startDate).slice(0, 5)} />
+                    <PanelStat icon={<CalendarClock size={13} />} label="Dias" value={String(dias)} />
+                    <PanelStat icon={<FileText size={13} />} label="RDOs" value={String(rdoCount)} />
+                    <PanelStat icon={<Wallet size={13} />} label="Gastos" value={gasto ? formatBRL(gasto).replace("R$", "").trim() : "—"} />
+                  </div>
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-[11px] text-muted mb-1">
+                      <span>Progresso do prazo</span><span>{pct}%</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-black/10 dark:bg-white/10">
+                      <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-5">
         {/* Obras ativas */}
@@ -202,6 +299,16 @@ export default function DashboardPage() {
           </Link>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function PanelStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="text-center">
+      <span className="text-muted flex items-center justify-center">{icon}</span>
+      <p className="text-sm font-bold leading-tight mt-0.5 truncate">{value}</p>
+      <p className="text-[10px] text-muted">{label}</p>
     </div>
   );
 }

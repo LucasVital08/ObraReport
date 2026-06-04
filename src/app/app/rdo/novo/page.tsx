@@ -108,12 +108,12 @@ function NovoRdoInner() {
           </div>
         ) : (
           <Field label="Obra / projeto">
-            <div className="flex gap-2">
-              <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="flex-1">
+            <div className="flex gap-2 items-stretch">
+              <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="flex-1 min-w-0 truncate">
                 <option value="">Selecione a obra…</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
-              <Link href="/app/obras/nova">
+              <Link href="/app/obras/nova" className="shrink-0">
                 <Button variant="outline" className="h-full whitespace-nowrap"><Plus size={16} /> Nova obra</Button>
               </Link>
             </div>
