@@ -4,7 +4,7 @@
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -573,6 +573,361 @@ function buildPitchExecutivo() {
   return ctx.doc;
 }
 
+// =====================================================================
+//  DOCUMENTO 4 — APRESENTAÇÃO COMPLETA (5 PÁGINAS, COM MOCKUPS)
+// =====================================================================
+
+// --- primitivos de desenho ---
+function rr(doc, x, y, w, h, r, rgb, mode = "F") { doc.setFillColor(...rgb); doc.roundedRect(x, y, w, h, r, r, mode); }
+function tx(doc, str, x, y, size, rgb = GRAPHITE, bold = false, align) {
+  doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size); doc.setTextColor(...rgb);
+  doc.text(str, x, y, align ? { align } : undefined);
+}
+function strokeRect(doc, x, y, w, h, r, rgb = [232, 234, 237]) {
+  doc.setDrawColor(...rgb); doc.setLineWidth(0.25); doc.roundedRect(x, y, w, h, r, r, "S");
+}
+function micGlyph(doc, cx, cy, sc, rgb) {
+  rr(doc, cx - 1 * sc, cy - 2.2 * sc, 2 * sc, 2.8 * sc, 1 * sc, rgb);
+  doc.setDrawColor(...rgb); doc.setLineWidth(0.3 * sc);
+  doc.line(cx, cy + 0.7 * sc, cx, cy + 1.9 * sc);
+  doc.line(cx - 1.3 * sc, cy + 1.9 * sc, cx + 1.3 * sc, cy + 1.9 * sc);
+  doc.setLineWidth(0.2);
+}
+
+// Embute um screenshot real do app dentro de uma moldura de celular.
+// Retorna a altura ocupada (mm). Cai num placeholder se a imagem não existir.
+function deviceImage(doc, x, y, w, file) {
+  const ratio = 1800 / 804; // proporção do viewport capturado (h/w)
+  const h = w * ratio;
+  rr(doc, x - 1.8, y - 1.8, w + 3.6, h + 3.6, 4.5, GRAPHITE);
+  const path = join(OUT_DIR, "screenshots", file);
+  if (existsSync(path)) {
+    const b64 = readFileSync(path).toString("base64");
+    doc.addImage(`data:image/jpeg;base64,${b64}`, "JPEG", x, y, w, h);
+  } else {
+    rr(doc, x, y, w, h, 3, [246, 247, 249]);
+    tx(doc, "(tela do app)", x + w / 2, y + h / 2, 8, MUTED, false, "center");
+  }
+  return h;
+}
+
+// moldura do celular -> retorna a área útil da tela
+function phone(doc, x, y, w, dark = false) {
+  const h = w * 2.04;
+  doc.setFillColor(...(dark ? [17, 20, 26] : GRAPHITE));
+  doc.roundedRect(x, y, w, h, 5, 5, "F");
+  const pad = 2.2;
+  const s = { sx: x + pad, sy: y + pad, sw: w - 2 * pad, sh: h - 2 * pad };
+  rr(doc, s.sx, s.sy, s.sw, s.sh, 3.5, [246, 247, 249]);
+  doc.setFillColor(...GRAPHITE);
+  doc.roundedRect(x + w / 2 - 6, y + 2.7, 12, 2.1, 1, 1, "F");
+  return s;
+}
+function phoneTop(doc, s) {
+  rr(doc, s.sx + 3, s.sy + 3, 5, 5, 2.5, BRAND);
+  rr(doc, s.sx + s.sw - 12, s.sy + 3.2, 4.4, 4.4, 2.2, [228, 230, 233]);
+  rr(doc, s.sx + s.sw - 6.6, s.sy + 3, 5, 5, 2.5, BRAND);
+  doc.setDrawColor(234); doc.setLineWidth(0.25); doc.line(s.sx, s.sy + 9.2, s.sx + s.sw, s.sy + 9.2);
+}
+function phoneNav(doc, s, activeIdx = 0) {
+  const ny = s.sy + s.sh - 9.5;
+  doc.setDrawColor(234); doc.setLineWidth(0.25); doc.line(s.sx, ny, s.sx + s.sw, ny);
+  const cw = s.sw / 5;
+  for (let i = 0; i < 5; i++) {
+    if (i === 2) continue;
+    const cx = s.sx + cw * i + cw / 2;
+    rr(doc, cx - 1.5, ny + 3, 3, 3, 0.7, i === activeIdx ? BRAND : [205, 209, 214]);
+  }
+  rr(doc, s.sx + s.sw / 2 - 4.6, ny - 2.6, 9.2, 9.2, 4.6, BRAND);
+  tx(doc, "+", s.sx + s.sw / 2, ny + 3.4, 10, [255, 255, 255], true, "center");
+}
+
+// --- texto em coluna (ao lado do mockup) ---
+function ch(ctx, cx, text) {
+  const { doc } = ctx; doc.setFillColor(...BRAND); doc.rect(cx, ctx.y - 0.5, 2.4, 4.8, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(...NAVY);
+  doc.text(text, cx + 4.5, ctx.y + 3.4); ctx.y += 8.5;
+}
+function cp(ctx, cx, cw, text, opts = {}) {
+  const { doc } = ctx; doc.setFont("helvetica", opts.bold ? "bold" : "normal");
+  doc.setFontSize(opts.size ?? 9.5); doc.setTextColor(...(opts.color ?? GRAPHITE));
+  for (const l of doc.splitTextToSize(text, cw)) { doc.text(l, cx, ctx.y); ctx.y += 4.9; }
+  ctx.y += 2.4;
+}
+function cb(ctx, cx, cw, items) {
+  const { doc } = ctx; doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+  for (const it of items) {
+    const lines = doc.splitTextToSize(it, cw - 5.5);
+    doc.setFillColor(...BRAND); doc.circle(cx + 1.3, ctx.y - 1.2, 0.85, "F");
+    doc.setTextColor(...GRAPHITE); doc.text(lines, cx + 5.5, ctx.y);
+    ctx.y += lines.length * 4.7 + 1.6;
+  }
+  ctx.y += 1.5;
+}
+function colCallout(ctx, cx, cw, title, text) {
+  const { doc } = ctx;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+  const bodyLines = doc.splitTextToSize(text, cw - 10);
+  const h = 10 + bodyLines.length * 4.8 + 4;
+  doc.setFillColor(...LIGHT); doc.roundedRect(cx, ctx.y, cw, h, 2.5, 2.5, "F");
+  doc.setFillColor(...BRAND); doc.roundedRect(cx, ctx.y, 2.5, h, 1, 1, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...NAVY);
+  doc.text(title, cx + 7, ctx.y + 7);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(...GRAPHITE);
+  doc.text(bodyLines, cx + 7, ctx.y + 13);
+  ctx.y += h + 5;
+}
+function pageTitle(ctx, num, title) {
+  const { doc } = ctx;
+  rr(doc, M, ctx.y, 7, 7, 1.4, NAVY);
+  tx(doc, String(num), M + 3.5, ctx.y + 4.9, 11, [255, 255, 255], true, "center");
+  tx(doc, title, M + 11, ctx.y + 5.4, 15, NAVY, true);
+  ctx.y += 9;
+  doc.setDrawColor(...BRAND); doc.setLineWidth(0.8); doc.line(M, ctx.y, M + 24, ctx.y);
+  doc.setLineWidth(0.2);
+  ctx.y += 6;
+}
+
+// ---- telas (mockups) ----
+function drawDashboard(doc, s) {
+  phoneTop(doc, s);
+  let y = s.sy + 14;
+  tx(doc, "Olá, Lucas", s.sx + 3, y, 7, GRAPHITE, true); y += 3.2;
+  tx(doc, "Resumo das obras hoje", s.sx + 3, y, 4.2, MUTED); y += 4.5;
+  // ação rápida (voz)
+  rr(doc, s.sx + 3, y, s.sw - 6, 9.5, 2, [255, 255, 255]); strokeRect(doc, s.sx + 3, y, s.sw - 6, 9.5, 2);
+  rr(doc, s.sx + 5, y + 2.2, 5.2, 5.2, 1.5, [255, 237, 222]); micGlyph(doc, s.sx + 7.6, y + 4.8, 1.0, BRAND);
+  tx(doc, "Criar RDO por voz", s.sx + 12.5, y + 3.8, 4.8, GRAPHITE, true);
+  tx(doc, "Fale o que aconteceu", s.sx + 12.5, y + 7, 3.9, MUTED); y += 12;
+  // grade de stats 2x2
+  const gw = (s.sw - 6 - 3) / 2;
+  const stats = [["Obras ativas", "6", BRAND], ["RDOs/mês", "9", [37, 99, 235]], ["A assinar", "10", [217, 119, 6]], ["Tarefas", "9", GRAPHITE]];
+  for (let i = 0; i < 4; i++) {
+    const col = i % 2, row = Math.floor(i / 2);
+    const cx = s.sx + 3 + col * (gw + 3), cy = y + row * 12.5;
+    rr(doc, cx, cy, gw, 11, 2, [255, 255, 255]); strokeRect(doc, cx, cy, gw, 11, 2);
+    tx(doc, stats[i][0], cx + 2.2, cy + 3.3, 3.7, MUTED);
+    tx(doc, stats[i][1], cx + 2.2, cy + 8.6, 6.5, stats[i][2], true);
+  }
+  y += 12.5 * 2 + 1.5;
+  // mini gráfico
+  rr(doc, s.sx + 3, y, s.sw - 6, 18, 2, [255, 255, 255]); strokeRect(doc, s.sx + 3, y, s.sw - 6, 18, 2);
+  tx(doc, "Atividade (14 dias)", s.sx + 5, y + 4, 4, GRAPHITE, true);
+  const pts = [0.4, 0.4, 0.45, 0.72, 0.92, 0.92, 0.92, 0.72, 0.42, 0.42, 0.6, 0.6, 0.5, 0.28];
+  const cx0 = s.sx + 5, cw = s.sw - 10, ct = y + 7, chh = 8.5;
+  doc.setDrawColor(...BRAND); doc.setLineWidth(0.5);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const x1 = cx0 + cw * (i / (pts.length - 1)), x2 = cx0 + cw * ((i + 1) / (pts.length - 1));
+    doc.line(x1, ct + chh * (1 - pts[i]), x2, ct + chh * (1 - pts[i + 1]));
+  }
+  doc.setLineWidth(0.2);
+  phoneNav(doc, s, 0);
+}
+
+function drawModes(doc, s) {
+  phoneTop(doc, s);
+  let y = s.sy + 14;
+  tx(doc, "Criar RDO", s.sx + 3, y, 7, GRAPHITE, true); y += 4.5;
+  // seletor de obra
+  rr(doc, s.sx + 3, y, s.sw - 6, 7, 1.8, [255, 255, 255]); strokeRect(doc, s.sx + 3, y, s.sw - 6, 7, 1.8);
+  tx(doc, "Obra / projeto", s.sx + 5, y + 4.4, 4.2, MUTED); y += 9.5;
+  const modes = [["Criar com IA por voz", "Recomendado", true], ["Criar com IA por texto", "", false], ["Criar por perguntas", "", false], ["Criar manualmente", "", false]];
+  for (let i = 0; i < modes.length; i++) {
+    const cy = y + i * 12.5;
+    const hi = modes[i][2];
+    rr(doc, s.sx + 3, cy, s.sw - 6, 11, 2, hi ? [255, 237, 222] : [255, 255, 255]);
+    strokeRect(doc, s.sx + 3, cy, s.sw - 6, 11, 2, hi ? BRAND : [232, 234, 237]);
+    rr(doc, s.sx + 5.5, cy + 2.5, 6, 6, 1.8, hi ? BRAND : [255, 237, 222]);
+    if (i === 0) micGlyph(doc, s.sx + 8.5, cy + 5.5, 1.0, hi ? [255, 255, 255] : BRAND);
+    else { tx(doc, ["", "T", "?", "✎"][i] || "", s.sx + 8.5, cy + 6.6, 5, BRAND, true, "center"); }
+    tx(doc, modes[i][0], s.sx + 14, cy + 5, 4.7, GRAPHITE, true);
+    if (modes[i][1]) tx(doc, modes[i][1], s.sx + 14, cy + 8.3, 3.8, BRAND, true);
+  }
+  phoneNav(doc, s, 2);
+}
+
+function drawVoice(doc, s) {
+  phoneTop(doc, s);
+  let y = s.sy + 14;
+  tx(doc, "RDO por voz", s.sx + 3, y, 6.5, GRAPHITE, true); y += 7;
+  // grande botão de microfone
+  const cx = s.sx + s.sw / 2, cy = y + 13;
+  rr(doc, cx - 11, cy - 11, 22, 22, 11, BRAND);
+  micGlyph(doc, cx, cy, 2.4, [255, 255, 255]);
+  y = cy + 15;
+  tx(doc, "Ouvindo… 0:18", cx, y, 5, GRAPHITE, true, "center"); y += 4.5;
+  tx(doc, "Fale: equipe, horários, atividades,", cx, y, 3.8, MUTED, false, "center"); y += 3.6;
+  tx(doc, "materiais, ocorrências e pendências.", cx, y, 3.8, MUTED, false, "center"); y += 6;
+  // caixa de transcrição
+  rr(doc, s.sx + 3, y, s.sw - 6, 18, 2, [240, 241, 243]);
+  tx(doc, "TRANSCRIÇÃO", s.sx + 5, y + 4, 3.4, MUTED, true);
+  doc.setFillColor(...[210, 214, 219]);
+  for (let i = 0; i < 4; i++) doc.roundedRect(s.sx + 5, y + 6.5 + i * 2.6, (s.sw - 10) * [0.95, 0.88, 0.7, 0.5][i], 1.4, 0.7, 0.7, "F");
+  y += 21;
+  // botão organizar
+  rr(doc, s.sx + 3, y, s.sw - 6, 8.5, 2, BRAND);
+  tx(doc, "Organizar com IA", cx, y + 5.5, 4.8, [255, 255, 255], true, "center");
+  phoneNav(doc, s, 2);
+}
+
+function drawQuestions(doc, s) {
+  phoneTop(doc, s);
+  let y = s.sy + 13;
+  tx(doc, "Pergunta 6 de 12", s.sx + 3, y, 5, GRAPHITE, true); y += 4;
+  // barra de progresso
+  rr(doc, s.sx + 3, y, s.sw - 6, 1.6, 0.8, [225, 228, 232]);
+  rr(doc, s.sx + 3, y, (s.sw - 6) * 0.5, 1.6, 0.8, BRAND); y += 7;
+  tx(doc, "Houve solicitação do", s.sx + 3, y, 6, GRAPHITE, true); y += 4.2;
+  tx(doc, "cliente/contratante?", s.sx + 3, y, 6, GRAPHITE, true); y += 6;
+  // caixa de resposta + microfone
+  const boxW = s.sw - 6 - 11;
+  rr(doc, s.sx + 3, y, boxW, 16, 2, [255, 255, 255]); strokeRect(doc, s.sx + 3, y, boxW, 16, 2);
+  doc.setFillColor(...[214, 218, 222]);
+  for (let i = 0; i < 3; i++) doc.roundedRect(s.sx + 5, y + 3.5 + i * 3, boxW * [0.85, 0.7, 0.45][i], 1.4, 0.7, 0.7, "F");
+  // botão de microfone à direita
+  rr(doc, s.sx + s.sw - 11.5, y, 8.5, 16, 2.5, BRAND);
+  micGlyph(doc, s.sx + s.sw - 7.25, y + 8, 1.3, [255, 255, 255]);
+  y += 18.5;
+  tx(doc, "Ouvindo… fale a resposta", s.sx + 3, y, 3.7, BRAND, true); y += 6;
+  // navegação
+  rr(doc, s.sx + 3, y, (s.sw - 6) * 0.42, 8, 2, [255, 255, 255]); strokeRect(doc, s.sx + 3, y, (s.sw - 6) * 0.42, 8, 2);
+  tx(doc, "Pular", s.sx + 3 + (s.sw - 6) * 0.21, y + 5.2, 4.3, MUTED, true, "center");
+  rr(doc, s.sx + 3 + (s.sw - 6) * 0.46, y, (s.sw - 6) * 0.54, 8, 2, BRAND);
+  tx(doc, "Próxima", s.sx + 3 + (s.sw - 6) * 0.73, y + 5.2, 4.3, [255, 255, 255], true, "center");
+  phoneNav(doc, s, 2);
+}
+
+function drawResult(doc, s) {
+  phoneTop(doc, s);
+  let y = s.sy + 13;
+  tx(doc, "RDO #18", s.sx + 3, y, 6.5, GRAPHITE, true);
+  rr(doc, s.sx + s.sw - 20, y - 3.6, 17, 5, 2.5, [223, 247, 233]);
+  tx(doc, "Aprovado", s.sx + s.sw - 11.5, y, 3.6, [22, 130, 70], true, "center"); y += 5.5;
+  // resumo executivo
+  rr(doc, s.sx + 3, y, s.sw - 6, 13, 2, [255, 255, 255]); strokeRect(doc, s.sx + 3, y, s.sw - 6, 13, 2);
+  tx(doc, "Resumo executivo (IA)", s.sx + 5, y + 3.5, 3.8, NAVY, true);
+  doc.setFillColor(...[214, 218, 222]);
+  for (let i = 0; i < 3; i++) doc.roundedRect(s.sx + 5, y + 5.8 + i * 2.4, (s.sw - 10) * [0.92, 0.8, 0.55][i], 1.3, 0.6, 0.6, "F");
+  y += 15.5;
+  // registro fotográfico
+  tx(doc, "Registro fotográfico", s.sx + 3, y, 4, GRAPHITE, true); y += 2.5;
+  const cols = 3, gap = 2, pw = (s.sw - 6 - gap * (cols - 1)) / cols, ph = pw * 0.72;
+  const colors = [[37, 99, 235], BRAND, [22, 130, 70], [124, 58, 237], [217, 119, 6], [8, 145, 178]];
+  for (let i = 0; i < 6; i++) {
+    const col = i % cols, row = Math.floor(i / cols);
+    rr(doc, s.sx + 3 + col * (pw + gap), y + row * (ph + gap), pw, ph, 1.5, colors[i]);
+  }
+  y += (ph + gap) * 2 + 2;
+  // assinaturas
+  rr(doc, s.sx + 3, y, s.sw - 6, 12, 2, [255, 255, 255]); strokeRect(doc, s.sx + 3, y, s.sw - 6, 12, 2);
+  tx(doc, "Assinaturas", s.sx + 5, y + 3.3, 3.8, GRAPHITE, true);
+  doc.setDrawColor(170); doc.setLineWidth(0.3);
+  doc.line(s.sx + 5, y + 9, s.sx + s.sw / 2 - 3, y + 9);
+  doc.line(s.sx + s.sw / 2 + 1, y + 9, s.sx + s.sw - 5, y + 9);
+  doc.setLineWidth(0.2);
+  tx(doc, "Executora", s.sx + 5, y + 11, 3.2, MUTED);
+  tx(doc, "Contratante", s.sx + s.sw / 2 + 1, y + 11, 3.2, MUTED);
+  phoneNav(doc, s, 1);
+}
+
+function buildApresentacao() {
+  const ctx = newCtx("ObraReport IA — Apresentação do produto");
+  const { doc } = ctx;
+  const IMGW = 56;
+  const COLX = M + IMGW + 10, COLW = PW - M - COLX;
+
+  // ===== Página 1 — Capa com screenshot real =====
+  doc.setFillColor(...GRAPHITE); doc.rect(0, 0, PW, PH, "F");
+  doc.setFillColor(...BRAND); doc.rect(0, 0, PW, 6, "F");
+  logoBox(doc, M, 24, 20);
+  tx(doc, "ObraReport IA", M + 26, 34, 15, [255, 255, 255], true);
+  tx(doc, "RDO inteligente para a construção brasileira", M + 26, 41, 10, [200, 205, 210]);
+  tx(doc, "APRESENTAÇÃO DO PRODUTO", M, 86, 12, BRAND, true);
+  tx(doc, "Responda, fale e pronto:", M, 102, 22, [255, 255, 255], true);
+  tx(doc, "o RDO montado por IA", M, 114, 18, [255, 255, 255], true);
+  doc.setFillColor(...BRAND); doc.rect(M, 122, 50, 2.2, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(210, 214, 219);
+  doc.text(doc.splitTextToSize(
+    "O ObraReport IA pergunta o que o relatório precisa, deixa o profissional responder por texto ou áudio e a inteligência artificial monta o Relatório Diário de Obra — com fotos, assinaturas e relatório final.",
+    106), M, 136);
+  deviceImage(doc, PW - M - IMGW, 96, IMGW, "01-dashboard.jpg");
+  tx(doc, "obra-report.vercel.app", M, PH - 28, 9.5, [180, 186, 192]);
+  tx(doc, `Documento gerado em ${HOJE}`, M, PH - 21, 9, [150, 156, 162]);
+
+  // ===== Página 2 — Criar o RDO: começa em 1 toque =====
+  doc.addPage(); ctx.page += 1; ctx.y = M;
+  pageTitle(ctx, 1, "Criar o RDO começa em 1 toque");
+  const t2 = ctx.y;
+  deviceImage(doc, M, t2, IMGW, "02-modos.jpg");
+  ctx.y = t2;
+  ch(ctx, COLX, "Escolha como registrar");
+  cp(ctx, COLX, COLW, "Direto do painel ou da obra, o profissional abre \"Criar RDO\" e escolhe o jeito mais cômodo para o dia — tudo desenhado para o canteiro, no celular.");
+  cb(ctx, COLX, COLW, [
+    "Por voz: fale o que aconteceu.",
+    "Por perguntas: responda passo a passo (foco deste material).",
+    "Por texto: cole um relato livre.",
+    "Manual: preencha o formulário completo.",
+  ]);
+  colCallout(ctx, COLX, COLW, "Por que perguntas?", "Quem está na obra nem sempre sabe o que um RDO precisa conter. As perguntas guiam o registro para que nada importante fique de fora — e o resultado sai padronizado.");
+
+  // ===== Página 3 — Perguntas direcionadas ao que o RDO precisa =====
+  addPage(ctx);
+  pageTitle(ctx, 2, "Perguntas direcionadas ao RDO");
+  const t3 = ctx.y;
+  deviceImage(doc, M, t3, IMGW, "03-perguntas.jpg");
+  ctx.y = t3;
+  ch(ctx, COLX, "As perguntas certas, na ordem certa");
+  cp(ctx, COLX, COLW, "Um roteiro de 12 perguntas objetivas cobre exatamente o que um Relatório Diário de Obra exige — o usuário só responde, sem precisar lembrar a estrutura do documento:");
+  cb(ctx, COLX, COLW, [
+    "O que foi executado e quem esteve presente.",
+    "Horários de chegada e saída.",
+    "Problemas, atrasos e impedimentos.",
+    "Solicitações do cliente e materiais/equipamentos.",
+    "Gastos, segurança e pendências para o próximo dia.",
+  ]);
+  ch(ctx, COLX, "No seu ritmo");
+  cp(ctx, COLX, COLW, "Dá para pular, voltar e revisar. A barra de progresso mostra quanto falta — e o registro do dia é concluído em poucos minutos.");
+
+  // ===== Página 4 — Responder por áudio + IA trata tudo =====
+  addPage(ctx);
+  pageTitle(ctx, 3, "Responda por áudio — a IA trata tudo");
+  const t4 = ctx.y;
+  deviceImage(doc, M, t4, IMGW, "04-voz.jpg");
+  ctx.y = t4;
+  ch(ctx, COLX, "Cada resposta pode ser falada");
+  cp(ctx, COLX, COLW, "Em qualquer pergunta basta tocar no microfone e responder em voz alta (pt-BR). A transcrição aparece na hora e pode ser misturada com texto — ideal para quem está com as mãos ocupadas na obra.");
+  ch(ctx, COLX, "A IA processa as respostas");
+  cb(ctx, COLX, COLW, [
+    "Compila todas as perguntas e respostas em um relato único.",
+    "Classifica cada informação no campo certo: atividades, equipe, ocorrências, solicitações, materiais, gastos, riscos e pendências.",
+    "Preenche horários e observações automaticamente.",
+    "Não inventa: descarta respostas vazias ou negativas e, se faltar algo, sinaliza.",
+  ]);
+  colCallout(ctx, COLX, COLW, "Sem alucinação", "A IA organiza e padroniza o que foi dito — ela não cria fatos. O que não foi informado fica em branco para revisão.");
+
+  // ===== Página 5 — RDO gerado, com fotos =====
+  addPage(ctx);
+  pageTitle(ctx, 4, "O RDO montado, com fotos");
+  const t5 = ctx.y;
+  deviceImage(doc, M, t5, IMGW, "05-rdo-fotos.jpg");
+  ctx.y = t5;
+  ch(ctx, COLX, "Tudo estruturado em segundos");
+  cp(ctx, COLX, COLW, "As respostas viram um RDO completo: resumo executivo, atividades com status, equipe, materiais, ocorrências, solicitações, gastos e o registro fotográfico do dia — com pontuação de qualidade que indica o que ainda falta.");
+  ch(ctx, COLX, "Fotos, assinatura e PDF");
+  cb(ctx, COLX, COLW, [
+    "Fotos e vídeos por fase (antes/durante/depois) no relatório.",
+    "Assinatura digital do responsável e do contratante.",
+    "Exportação em PDF profissional com a marca da empresa.",
+    "Compartilhamento por WhatsApp, e-mail ou link.",
+  ]);
+  ch(ctx, COLX, "Contratante e relatório final");
+  cp(ctx, COLX, COLW, "O contratante acompanha por login próprio: vê os RDOs, comenta, aprova e assina. Ao fim da obra, todos os RDOs viram um relatório final consolidado com linha do tempo gerada por IA.");
+  colCallout(ctx, COLX, COLW, "Comece agora", "Teste grátis em obra-report.vercel.app — responda as perguntas por áudio e veja o RDO pronto na hora.");
+
+  footer(ctx);
+  return doc;
+}
+
 // ---- Execução ----
 mkdirSync(OUT_DIR, { recursive: true });
 const doc1 = buildDocumentacao();
@@ -587,7 +942,12 @@ const doc3 = buildPitchExecutivo();
 const p3 = join(OUT_DIR, "ObraReport-IA-Pitch-Executivo-2laudas.pdf");
 writeFileSync(p3, Buffer.from(doc3.output("arraybuffer")));
 
+const doc4 = buildApresentacao();
+const p4 = join(OUT_DIR, "ObraReport-IA-Apresentacao-5paginas.pdf");
+writeFileSync(p4, Buffer.from(doc4.output("arraybuffer")));
+
 console.log("PDFs gerados:");
 console.log(" -", p1, `(${doc1.getNumberOfPages()} páginas)`);
 console.log(" -", p2, `(${doc2.getNumberOfPages()} páginas)`);
 console.log(" -", p3, `(${doc3.getNumberOfPages()} páginas)`);
+console.log(" -", p4, `(${doc4.getNumberOfPages()} páginas)`);
