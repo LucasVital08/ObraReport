@@ -34,7 +34,8 @@ function footer(ctx) {
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
   doc.text(ctx.footerLabel, M, PH - 9);
-  doc.text(`página ${ctx.page}`, PW - M, PH - 9, { align: "right" });
+  const pageNum = doc.internal.getCurrentPageInfo?.().pageNumber ?? ctx.page;
+  doc.text(`página ${pageNum}`, PW - M, PH - 9, { align: "right" });
 }
 
 function addPage(ctx) {
@@ -928,6 +929,128 @@ function buildApresentacao() {
   return doc;
 }
 
+// =====================================================================
+//  DOCUMENTO 5 — PROJEÇÕES FINANCEIRAS + ANÁLISE DE MERCADO
+// =====================================================================
+// Mini gráfico de barras (faturamento por ano)
+function barChart(ctx, items) {
+  const { doc } = ctx;
+  const h = 44, top = ctx.y, left = M + 2, w = PW - 2 * M - 4;
+  ensure(ctx, h + 6);
+  const max = Math.max(...items.map((i) => i.value));
+  const bw = w / items.length;
+  // linha de base
+  doc.setDrawColor(225); doc.setLineWidth(0.3); doc.line(left, top + h - 8, left + w, top + h - 8);
+  items.forEach((it, i) => {
+    const bh = Math.max(1.5, (it.value / max) * (h - 16));
+    const bwid = bw * 0.5;
+    const x = left + i * bw + (bw - bwid) / 2;
+    const y = top + (h - 8) - bh;
+    rr(doc, x, y, bwid, bh, 1, BRAND);
+    tx(doc, it.top, x + bwid / 2, y - 1.6, 7, GRAPHITE, true, "center");
+    tx(doc, it.label, x + bwid / 2, top + h - 3, 7, MUTED, false, "center");
+  });
+  ctx.y = top + h + 4;
+}
+
+function buildProjecoesMercado() {
+  const ctx = newCtx("ObraReport IA — Projeções financeiras e análise de mercado");
+  cover(ctx, "Projeções & Mercado", "Projeções de", "receita e mercado",
+    "Modelo otimista de receita, faturamento e lucro (bruto e líquido) com custos reais, e a análise do mercado de construção no Brasil — com o percentual que o ObraReport IA pode representar.");
+
+  let n = 0;
+
+  // ---- 1. Mercado (Brasil) ----
+  section(ctx, ++n, "O mercado de construção no Brasil");
+  paragraph(ctx, "A construção civil responde por cerca de 5,8% do PIB brasileiro (R$ 359,5 bi em 2024). É um setor enorme, capilarizado e ainda pouco digitalizado — o terreno ideal para um RDO simples, barato e por voz.");
+  simpleTable(ctx, ["Indicador", "Número", "Fonte (ano)"], [
+    ["Construção no PIB", "5,8% — R$ 359,5 bi", "IBGE / CBIC (2024)"],
+    ["Empresas formais (CNAE F)", "~165.800", "IBGE PAIC (2023)"],
+    ["MEIs de construção (estim.)", "~800 mil", "Sebrae / Receita (2024)"],
+    ["Trabalhadores formais do setor", "~2,9 milhões", "CBIC / CAGED (2024)"],
+    ["Engenheiros civis (CONFEA)", "~369 mil", "CONFEA (2024)"],
+    ["Arquitetos (CAU)", "~242 mil", "CAU/BR (2024)"],
+    ["Construtechs (com IA)", "267 (apenas ~29)", "Liga Ventures (2025)"],
+    ["Adoção de software de obra", "~61% (gap de ~39%)", "Liga Ventures (2024)"],
+  ], { columnStyles: { 0: { cellWidth: 58, fontStyle: "bold" }, 1: { cellWidth: 50 } } });
+  paragraph(ctx, "Mesmo entre empresas que já usam algum software, 39% ainda não têm controle digital de obra — e a maioria das soluções é cara ou complexa.", { size: 9, color: MUTED });
+
+  // ---- 2. TAM / SAM / SOM ----
+  section(ctx, ++n, "Tamanho de mercado e participação (TAM/SAM/SOM)");
+  simpleTable(ctx, ["Camada", "Definição", "Tamanho", "ObraReport"], [
+    ["TAM", "Empresas formais + MEIs de construção", "~1,06 milhão", "—"],
+    ["SAM", "Empresas/MPE digitalizáveis (alvo realista)", "~250–300 mil", "—"],
+    ["SOM Ano 1", "Clientes pagantes", "500", "~0,2% do SAM"],
+    ["SOM Ano 3", "Clientes pagantes", "5.000", "~2% do SAM"],
+    ["SOM Ano 5", "Clientes pagantes", "15.000", "~5–6% do SAM"],
+  ], { columnStyles: { 0: { cellWidth: 24, fontStyle: "bold" }, 2: { cellWidth: 30 }, 3: { cellWidth: 34 } } });
+  paragraph(ctx, "Em 5 anos, 15.000 clientes representam cerca de 9% das empresas formais de construção do país — ainda deixando a maior parte do mercado em aberto. É uma meta ambiciosa, porém pequena diante do tamanho total: há muito espaço para crescer.", { size: 9.5 });
+
+  // ---- 3. Concorrência e lacuna ----
+  section(ctx, ++n, "Concorrência e a lacuna que ocupamos");
+  simpleTable(ctx, ["Solução", "Foco", "Preço aprox."], [
+    ["Sienge (Softplan)", "Ecossistema da incorporação (enterprise)", "Sob consulta"],
+    ["Mobuss Construção", "Gestão do canteiro ao pós-obra (enterprise)", "Sob consulta"],
+    ["Construpoint (Sienge)", "Diário de obra mobile (add-on do ecossistema)", "Incluso"],
+    ["App Diário de Obra / Obrafit", "RDO/diário acessível, manual", "Dezenas/mês"],
+    ["Vobi / OrçaFascio", "Financeiro / orçamento de obra", "~R$ 100–300/mês"],
+    ["ObraReport IA (nós)", "RDO por voz + IA, mobile, contratante", "R$ 79–399/mês"],
+  ], { columnStyles: { 0: { cellWidth: 46, fontStyle: "bold" }, 2: { cellWidth: 34 } } });
+  callout(ctx, "A lacuna (gap)", "As soluções completas (Sienge, Mobuss) são caras e voltadas para grandes construtoras; os apps baratos são manuais. Não há um líder claro de \"RDO por voz + IA, mobile-first e barato\" com camada de contratante — exatamente o nosso posicionamento.");
+
+  // ---- 4. Premissas do modelo (custos reais) ----
+  section(ctx, ++n, "Premissas do modelo (otimista, custos reais)");
+  bullets(ctx, [
+    "Preços reais do app: Free R$ 0, Básico R$ 79, Profissional R$ 199, Empresa R$ 399/mês.",
+    "Receita média por cliente pagante (ARPU) ~ R$ 152/mês (mix 55% Básico, 35% Profissional, 10% Empresa).",
+    "Custos diretos reais: taxa de pagamento ~3,5% da receita (Pix ~1% / cartão ~4,5%) e infraestrutura < 1% (Vercel/Supabase/IA só quando ativados — hoje ~R$ 0).",
+    "Impostos: Simples Nacional ~6% no início; ao ultrapassar o teto (R$ 4,8 mi/ano), migra para Lucro Presumido (~14% efetivo).",
+  ]);
+  callout(ctx, "Sem inventar custos", "Hoje não há folha de pagamento, marketing pago nem servidores caros — por isso a margem é alta e real. Os custos de equipe e anúncios entram apenas como cenário de crescimento (opcional), nunca como despesa atual fictícia.");
+
+  // ---- 5. Projeção Ano 1 (mês a mês) ----
+  section(ctx, ++n, "Projeção do Ano 1 (mês a mês)");
+  const meses = [
+    ["Mês 1", "10", "1.520", "1.520"], ["Mês 2", "20", "3.040", "4.560"],
+    ["Mês 3", "35", "5.320", "9.880"], ["Mês 4", "55", "8.360", "18.240"],
+    ["Mês 5", "80", "12.160", "30.400"], ["Mês 6", "110", "16.720", "47.120"],
+    ["Mês 7", "150", "22.800", "69.920"], ["Mês 8", "200", "30.400", "100.320"],
+    ["Mês 9", "260", "39.520", "139.840"], ["Mês 10", "330", "50.160", "190.000"],
+    ["Mês 11", "410", "62.320", "252.320"], ["Mês 12", "500", "76.000", "328.320"],
+  ];
+  simpleTable(ctx, ["Mês", "Pagantes", "MRR (R$)", "Receita acum. (R$)"], meses,
+    { columnStyles: { 1: { halign: "center" }, 2: { halign: "right" }, 3: { halign: "right" } } });
+  paragraph(ctx, "Fim do Ano 1: 500 clientes pagantes, MRR de R$ 76 mil (ARR ~R$ 912 mil). Faturamento do ano ~R$ 328 mil; lucro bruto ~R$ 316 mil; lucro líquido ~R$ 296 mil (margem ~90%).", { size: 9.5 });
+
+  // ---- 6. Consolidado 5 anos + expansão ----
+  section(ctx, ++n, "Projeção de 3 a 5 anos e expansão");
+  simpleTable(ctx, ["Ano", "Pagantes", "Faturamento", "Lucro bruto", "Lucro líquido", "Margem"], [
+    ["1", "500", "R$ 328 mil", "R$ 316 mil", "R$ 296 mil", "90%"],
+    ["2", "2.000", "R$ 2,10 mi", "R$ 2,02 mi", "R$ 1,77 mi", "84%"],
+    ["3", "5.000", "R$ 6,02 mi", "R$ 5,78 mi", "R$ 4,94 mi", "82%"],
+    ["4", "9.000", "R$ 12,77 mi", "R$ 12,26 mi", "R$ 10,47 mi", "82%"],
+    ["5", "15.000", "R$ 21,89 mi", "R$ 21,00 mi", "R$ 17,94 mi", "82%"],
+  ], { columnStyles: { 0: { cellWidth: 12, halign: "center", fontStyle: "bold" } } });
+  barChart(ctx, [
+    { label: "Ano 1", value: 0.33, top: "R$0,3mi" },
+    { label: "Ano 2", value: 2.10, top: "R$2,1mi" },
+    { label: "Ano 3", value: 6.02, top: "R$6,0mi" },
+    { label: "Ano 4", value: 12.77, top: "R$12,8mi" },
+    { label: "Ano 5", value: 21.89, top: "R$21,9mi" },
+  ]);
+  subheading(ctx, "Anos 3–5: consolidação nacional e ida internacional");
+  bullets(ctx, [
+    "Anos 1–3: foco no Brasil — virar referência em RDO por voz/IA para MPE e autônomos.",
+    "Anos 3–5: expansão nacional + entrada na América Latina (mercados de língua espanhola, mesma dor de obra).",
+    "O mercado global de software de gestão de construção é de ~US$ 9,5–10,8 bi (2025), crescendo ~8–10% ao ano até ~US$ 14–18 bi em 2030–31 (Mordor, MarketsandMarkets, Technavio).",
+    "No Ano 5, ~R$ 27 mi de ARR equivalem a ~US$ 5 mi — cerca de 0,03–0,05% do mercado global: a barreira é execução e distribuição, não tamanho de mercado.",
+  ]);
+  callout(ctx, "Leitura honesta dos números", "São projeções otimistas, baseadas em premissas explícitas de adoção e ARPU — não são garantia. A margem alta reflete a operação enxuta atual; com equipe e investimento em aquisição, a margem líquida cai, mas o faturamento tende a crescer mais rápido.");
+
+  footer(ctx);
+  return ctx.doc;
+}
+
 // ---- Execução ----
 mkdirSync(OUT_DIR, { recursive: true });
 const doc1 = buildDocumentacao();
@@ -946,8 +1069,13 @@ const doc4 = buildApresentacao();
 const p4 = join(OUT_DIR, "ObraReport-IA-Apresentacao-5paginas.pdf");
 writeFileSync(p4, Buffer.from(doc4.output("arraybuffer")));
 
+const doc5 = buildProjecoesMercado();
+const p5 = join(OUT_DIR, "ObraReport-IA-Projecoes-e-Mercado.pdf");
+writeFileSync(p5, Buffer.from(doc5.output("arraybuffer")));
+
 console.log("PDFs gerados:");
 console.log(" -", p1, `(${doc1.getNumberOfPages()} páginas)`);
 console.log(" -", p2, `(${doc2.getNumberOfPages()} páginas)`);
 console.log(" -", p3, `(${doc3.getNumberOfPages()} páginas)`);
+console.log(" -", p5, `(${doc5.getNumberOfPages()} páginas)`);
 console.log(" -", p4, `(${doc4.getNumberOfPages()} páginas)`);
