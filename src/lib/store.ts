@@ -7,6 +7,7 @@ import { nowISO, uid } from "@/lib/utils";
 import type {
   Checklist, Company, Contact, DailyReport, Equipment, Expense, Incident,
   Material, Project, Task, TeamMember, TimeCard, FinalReport, PlanId, ProjectDocument,
+  RdoComment,
 } from "@/lib/types";
 
 interface State extends AppData {
@@ -23,6 +24,7 @@ interface State extends AppData {
   logout: () => void;
   register: (name: string, email: string, companyName: string) => void;
   loadDemo: () => void;
+  loadDemoClient: () => void;
   resetAll: () => void;
   completeOnboarding: () => void;
   setTheme: (t: "light" | "dark") => void;
@@ -79,6 +81,10 @@ interface State extends AppData {
 
   addDocument: (d: Omit<ProjectDocument, "id" | "companyId">) => { ok: boolean; error?: string };
   deleteDocument: (id: string) => void;
+
+  // comentários/observações em RDOs (ex.: do contratante)
+  addRdoComment: (rdoId: string, c: Omit<RdoComment, "id" | "createdAt">) => void;
+  deleteRdoComment: (rdoId: string, commentId: string) => void;
 }
 
 const CID = "cmp_demo";
@@ -146,6 +152,27 @@ export const useStore = create<State>()(
             demoMode: true,
           };
         }),
+      // Entra na demonstração com o perfil do CONTRATANTE (camada cliente):
+      // mesma base de dados, mas com papel "client" e acesso só às obras dele.
+      loadDemoClient: () =>
+        set(() => {
+          const data = createSeedData();
+          return {
+            ...data,
+            user: {
+              ...data.user,
+              name: "Carlos Andrade",
+              email: "contratante@cliente.com.br",
+              role: "client",
+              clientProjectIds: data.projects.map((p) => p.id),
+            },
+            finalReports: [],
+            documents: [],
+            isAuthenticated: true,
+            onboardingComplete: true,
+            demoMode: true,
+          };
+        }),
       resetAll: () =>
         set(() => ({
           ...emptyData(),
@@ -174,7 +201,7 @@ export const useStore = create<State>()(
         set((s) => ({
           projects: s.projects.filter((x) => x.id !== id),
           reports: s.reports.filter((x) => x.projectId !== id),
-          documents: s.documents.filter((x) => x.projectId !== id),
+          documents: (s.documents ?? []).filter((x) => x.projectId !== id),
         })),
 
       // ---- reports ----
@@ -240,7 +267,7 @@ export const useStore = create<State>()(
         const id = uid("fr");
         set((s) => ({
           finalReports: [
-            ...s.finalReports.filter((x) => x.projectId !== f.projectId),
+            ...(s.finalReports ?? []).filter((x) => x.projectId !== f.projectId),
             { ...f, id, companyId: CID },
           ],
         }));
@@ -255,16 +282,56 @@ export const useStore = create<State>()(
           return { ok: false, error: "Arquivo muito grande (máx. 3 MB nesta versão). Comprima o PDF e tente novamente." };
         }
         try {
-          set((s) => ({ documents: [...s.documents, { ...d, id: uid("doc"), companyId: CID }] }));
+          set((s) => ({ documents: [...(s.documents ?? []), { ...d, id: uid("doc"), companyId: CID }] }));
           return { ok: true };
         } catch {
           return { ok: false, error: "Não foi possível salvar o documento (limite de armazenamento atingido)." };
         }
       },
-      deleteDocument: (id) => set((s) => ({ documents: s.documents.filter((x) => x.id !== id) })),
+      deleteDocument: (id) => set((s) => ({ documents: (s.documents ?? []).filter((x) => x.id !== id) })),
+
+      addRdoComment: (rdoId, c) =>
+        set((s) => ({
+          reports: s.reports.map((r) =>
+            r.id === rdoId
+              ? { ...r, comments: [...(r.comments ?? []), { ...c, id: uid("cmt"), createdAt: nowISO() }] }
+              : r,
+          ),
+        })),
+      deleteRdoComment: (rdoId, commentId) =>
+        set((s) => ({
+          reports: s.reports.map((r) =>
+            r.id === rdoId
+              ? { ...r, comments: (r.comments ?? []).filter((x) => x.id !== commentId) }
+              : r,
+          ),
+        })),
     }),
     {
       name: "obrareport-ia-store",
+      // Backfill defensivo: estados persistidos por versões antigas podem não
+      // ter alguns arrays (ex.: documents, finalReports), o que causava crash
+      // ao acessar `.filter`. Garantimos que todas as coleções existam.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>;
+        return {
+          ...current,
+          ...p,
+          projects: p.projects ?? current.projects,
+          reports: p.reports ?? current.reports,
+          tasks: p.tasks ?? current.tasks,
+          team: p.team ?? current.team,
+          timeCards: p.timeCards ?? current.timeCards,
+          materials: p.materials ?? current.materials,
+          equipment: p.equipment ?? current.equipment,
+          checklists: p.checklists ?? current.checklists,
+          incidents: p.incidents ?? current.incidents,
+          expenses: p.expenses ?? current.expenses,
+          contacts: p.contacts ?? current.contacts,
+          finalReports: p.finalReports ?? [],
+          documents: p.documents ?? [],
+        };
+      },
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;
       },

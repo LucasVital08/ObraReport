@@ -8,14 +8,15 @@ import { SignaturePad } from "@/components/signature-pad";
 import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Badge, Modal, Field, Input, Select, useToast, EmptyState, Progress } from "@/components/ui";
 import { RdoStatusBadge } from "@/components/status";
+import { Avatar } from "@/components/brand";
 import { evaluateCompleteness } from "@/lib/ai/engine";
 import { generateRdoPdf } from "@/lib/pdf";
 import { formatBRL, formatDateBR, uid, nowISO } from "@/lib/utils";
-import { RDO_STATUS_LABELS, type RdoStatus, type Signature } from "@/lib/types";
+import { RDO_STATUS_LABELS, ROLE_LABELS, type RdoStatus, type Signature, type DailyReport } from "@/lib/types";
 import {
   Pencil, FileDown, Share2, PenLine, Save, Users, Hammer, AlertTriangle,
-  ListTodo, Package, Camera, FileText, MessageCircle, Mail, Link2, X,
-  CheckCircle2, Sparkles, Wallet,
+  ListTodo, Package, Camera, FileText, MessageCircle, MessageSquare, Mail, Link2, X,
+  CheckCircle2, Sparkles, Wallet, ShieldCheck, Trash2,
 } from "lucide-react";
 
 export default function RdoViewPage() {
@@ -28,9 +29,11 @@ export default function RdoViewPage() {
   const team = useStore((s) => s.team);
   const updateReport = useStore((s) => s.updateReport);
   const deleteReport = useStore((s) => s.deleteReport);
+  const isClient = useStore((s) => s.user.role === "client");
 
   const [editing, setEditing] = React.useState(false);
   const [signOpen, setSignOpen] = React.useState(false);
+  const [signLocked, setSignLocked] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
 
   if (!report) {
@@ -69,9 +72,17 @@ export default function RdoViewPage() {
         backHref={project ? `/app/obras/${project.id}` : "/app"}
         action={
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil size={15} /> Editar</Button>
-            <Button variant="outline" size="sm" onClick={() => setSignOpen(true)}><PenLine size={15} /> Assinar</Button>
-            <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}><Share2 size={15} /> Compartilhar</Button>
+            {isClient ? (
+              <Button variant="outline" size="sm" onClick={() => { setSignLocked(true); setSignOpen(true); }} disabled={report.status === "aprovado"}>
+                <ShieldCheck size={15} /> {report.status === "aprovado" ? "Aprovado" : "Aprovar / assinar"}
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil size={15} /> Editar</Button>
+                <Button variant="outline" size="sm" onClick={() => { setSignLocked(false); setSignOpen(true); }}><PenLine size={15} /> Assinar</Button>
+                <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}><Share2 size={15} /> Compartilhar</Button>
+              </>
+            )}
             <Button size="sm" onClick={downloadPdf}><FileDown size={15} /> PDF</Button>
           </div>
         }
@@ -84,9 +95,11 @@ export default function RdoViewPage() {
           <Badge tone="neutral">Modo: {report.createMode}</Badge>
           <span className="text-sm text-muted">{report.arrival || "—"} às {report.departure || "—"}</span>
         </div>
-        <Select value={report.status} onChange={(e) => updateReport(report.id, { status: e.target.value as RdoStatus })} className="w-48">
-          {Object.entries(RDO_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </Select>
+        {!isClient && (
+          <Select value={report.status} onChange={(e) => updateReport(report.id, { status: e.target.value as RdoStatus })} className="w-48">
+            {Object.entries(RDO_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </Select>
+        )}
       </Card>
 
       <div className="grid lg:grid-cols-3 gap-5">
@@ -172,6 +185,8 @@ export default function RdoViewPage() {
               </div>
             </Card>
           )}
+
+          <CommentsCard report={report} />
         </div>
 
         {/* Sidebar */}
@@ -201,18 +216,32 @@ export default function RdoViewPage() {
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full" onClick={() => setSignOpen(true)}><PenLine size={15} /> Adicionar assinatura</Button>
+              <Button variant="outline" className="w-full" onClick={() => { setSignLocked(isClient); setSignOpen(true); }}>
+                <PenLine size={15} /> {isClient ? "Aprovar / assinar" : "Adicionar assinatura"}
+              </Button>
             </div>
           </Card>
 
-          <Button variant="ghost" className="w-full text-danger" onClick={() => { if (confirm("Excluir este RDO?")) { deleteReport(report.id); router.push("/app"); } }}>
-            Excluir RDO
-          </Button>
+          {!isClient && (
+            <Button variant="ghost" className="w-full text-danger" onClick={() => { if (confirm("Excluir este RDO?")) { deleteReport(report.id); router.push("/app"); } }}>
+              Excluir RDO
+            </Button>
+          )}
         </div>
       </div>
 
-      <SignModal open={signOpen} onClose={() => setSignOpen(false)} defaultName={report.supervisor}
-        onSign={(sig) => { updateReport(report.id, { signatures: [...report.signatures.filter((s) => s.role !== sig.role), sig], status: report.status === "rascunho" || report.status === "incompleto" ? "assinado" : report.status }); setSignOpen(false); show("Assinatura registrada!"); }} />
+      <SignModal key={`sign-${signLocked}`} open={signOpen} onClose={() => setSignOpen(false)} defaultName={report.supervisor}
+        lockedRole={signLocked ? "cliente" : undefined}
+        onSign={(sig) => {
+          updateReport(report.id, {
+            signatures: [...report.signatures.filter((s) => s.role !== sig.role), sig],
+            status: sig.role === "cliente"
+              ? "aprovado"
+              : (report.status === "rascunho" || report.status === "incompleto" ? "assinado" : report.status),
+          });
+          setSignOpen(false);
+          show(sig.role === "cliente" ? "RDO aprovado e assinado!" : "Assinatura registrada!");
+        }} />
 
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} report={report} project={project?.name || ""}
         onPdf={downloadPdf} onShared={() => { updateReport(report.id, { status: report.status === "assinado" || report.status === "aprovado" ? report.status : "enviado" }); show("Marcado como enviado."); }} />
@@ -241,10 +270,62 @@ function MediaGallery({ media }: { media: { id: string; kind: string; phase: str
   );
 }
 
-function SignModal({ open, onClose, onSign, defaultName }: {
-  open: boolean; onClose: () => void; onSign: (s: Signature) => void; defaultName: string;
+function CommentsCard({ report }: { report: DailyReport }) {
+  const user = useStore((s) => s.user);
+  const addRdoComment = useStore((s) => s.addRdoComment);
+  const deleteRdoComment = useStore((s) => s.deleteRdoComment);
+  const [text, setText] = React.useState("");
+  const comments = report.comments ?? [];
+
+  function submit() {
+    const t = text.trim();
+    if (!t) return;
+    addRdoComment(report.id, { authorName: user.name, authorRole: user.role, text: t });
+    setText("");
+  }
+
+  return (
+    <Card>
+      <CardHeader title="Observações e comentários" icon={<MessageSquare size={18} />}
+        subtitle="Conversa entre a executora e o contratante sobre este RDO" />
+      <div className="p-4 space-y-4">
+        {comments.length === 0 ? (
+          <p className="text-sm text-muted">Nenhum comentário ainda. Registre observações sobre o que foi lançado.</p>
+        ) : (
+          <div className="space-y-3">
+            {comments.map((c) => (
+              <div key={c.id} className="flex gap-3">
+                <Avatar name={c.authorName} size={32} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm flex items-center gap-2 flex-wrap">
+                    <span className="font-medium">{c.authorName}</span>
+                    <Badge tone={c.authorRole === "client" ? "info" : "neutral"}>{ROLE_LABELS[c.authorRole]}</Badge>
+                  </p>
+                  <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap">{c.text}</p>
+                  <p className="text-xs text-muted mt-0.5">{formatDateBR(c.createdAt)}</p>
+                </div>
+                {c.authorName === user.name && (
+                  <button onClick={() => deleteRdoComment(report.id, c.id)} className="text-muted hover:text-danger p-1 self-start"><Trash2 size={14} /></button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2}
+            placeholder="Escreva uma observação…"
+            className="flex-1 rounded-xl border border-border bg-transparent px-3 py-2 text-sm resize-none focus:outline-none focus:border-brand" />
+          <Button onClick={submit} disabled={!text.trim()} className="self-end">Enviar</Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SignModal({ open, onClose, onSign, defaultName, lockedRole }: {
+  open: boolean; onClose: () => void; onSign: (s: Signature) => void; defaultName: string; lockedRole?: Signature["role"];
 }) {
-  const [role, setRole] = React.useState<Signature["role"]>("cliente");
+  const [role, setRole] = React.useState<Signature["role"]>(lockedRole ?? "cliente");
   const [name, setName] = React.useState("");
   const [document, setDocument] = React.useState("");
   const [dataUrl, setDataUrl] = React.useState("");
@@ -256,24 +337,32 @@ function SignModal({ open, onClose, onSign, defaultName }: {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Assinatura eletrônica" wide
+    <Modal open={open} onClose={onClose} title={lockedRole === "cliente" ? "Aprovar e assinar RDO" : "Assinatura eletrônica"} wide
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button disabled={!name || !accepted} onClick={() => onSign({ id: uid("sig"), role, name, document, dataUrl, signedAt: nowISO(), accepted })}>
-            <CheckCircle2 size={16} /> Confirmar assinatura
+            <CheckCircle2 size={16} /> {lockedRole === "cliente" ? "Aprovar e assinar" : "Confirmar assinatura"}
           </Button>
         </>
       }>
       <div className="space-y-4">
-        <Field label="Quem está assinando">
-          <Select value={role} onChange={(e) => changeRole(e.target.value as Signature["role"])}>
-            <option value="cliente">Cliente / Contratante</option>
-            <option value="supervisor">Supervisor / Responsável</option>
-            <option value="responsavel">Responsável técnico</option>
-            <option value="testemunha">Testemunha</option>
-          </Select>
-        </Field>
+        {lockedRole ? (
+          <Field label="Quem está assinando">
+            <div className="rounded-xl border border-border px-3 py-2.5 text-sm bg-black/5 dark:bg-white/5">
+              {lockedRole === "cliente" ? "Cliente / Contratante" : lockedRole}
+            </div>
+          </Field>
+        ) : (
+          <Field label="Quem está assinando">
+            <Select value={role} onChange={(e) => changeRole(e.target.value as Signature["role"])}>
+              <option value="cliente">Cliente / Contratante</option>
+              <option value="supervisor">Supervisor / Responsável</option>
+              <option value="responsavel">Responsável técnico</option>
+              <option value="testemunha">Testemunha</option>
+            </Select>
+          </Field>
+        )}
         <Field label="Nome completo"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Documento (opcional)"><Input value={document} onChange={(e) => setDocument(e.target.value)} placeholder="CPF/RG" /></Field>
         <Field label="Assinatura"><SignaturePad onChange={setDataUrl} /></Field>

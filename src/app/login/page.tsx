@@ -6,13 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { Logo } from "@/components/brand";
 import { Button, Card, Field, Input } from "@/components/ui";
-import { Mail, Lock, Play } from "lucide-react";
+import { Mail, Lock, HardHat, ShieldCheck } from "lucide-react";
 
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const login = useStore((s) => s.login);
   const loadDemo = useStore((s) => s.loadDemo);
+  const loadDemoClient = useStore((s) => s.loadDemoClient);
   const onboardingComplete = useStore((s) => s.onboardingComplete);
   const [email, setEmail] = React.useState("gestor360@aksenterprise.com.br");
   const [password, setPassword] = React.useState("demo1234");
@@ -32,6 +33,11 @@ function LoginInner() {
 
   function demo() {
     loadDemo();
+    router.push("/app");
+  }
+
+  function demoClient() {
+    loadDemoClient();
     router.push("/app");
   }
 
@@ -60,11 +66,19 @@ function LoginInner() {
           <Button type="submit" className="w-full" size="lg">Entrar</Button>
         </form>
         <div className="my-4 flex items-center gap-3 text-xs text-muted">
-          <span className="flex-1 h-px bg-border" /> ou <span className="flex-1 h-px bg-border" />
+          <span className="flex-1 h-px bg-border" /> demonstração <span className="flex-1 h-px bg-border" />
         </div>
-        <Button variant="outline" className="w-full" onClick={demo}>
-          <Play size={16} /> Entrar no modo demonstração
-        </Button>
+        <div className="space-y-2">
+          <Button variant="outline" className="w-full" onClick={demo}>
+            <HardHat size={16} /> Entrar como construtora
+          </Button>
+          <Button variant="outline" className="w-full" onClick={demoClient}>
+            <ShieldCheck size={16} /> Entrar como contratante
+          </Button>
+        </div>
+        <p className="mt-3 text-xs text-muted text-center">
+          A construtora lança os RDOs; o contratante acompanha, comenta e aprova.
+        </p>
       </Card>
       <p className="mt-6 text-sm text-muted">
         Não tem conta? <Link href="/register" className="text-brand font-medium hover:underline">Criar agora</Link>

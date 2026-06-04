@@ -26,9 +26,12 @@ export interface User {
   role: Role;
   avatarColor?: string;
   companyId: ID;
+  // Quando o usuário é um contratante (role "client"), lista as obras que ele
+  // pode acompanhar. Para owner/admin fica indefinido (enxerga tudo).
+  clientProjectIds?: ID[];
 }
 
-export type PlanId = "basico" | "profissional" | "empresa";
+export type PlanId = "free" | "basico" | "profissional" | "empresa";
 
 export interface Company {
   id: ID;
@@ -138,6 +141,16 @@ export interface Providencia {
   priority: ProvidenciaPriority;
 }
 
+// Comentário/observação feito sobre um RDO (ex.: o contratante comenta o que
+// foi lançado pelo contratado, criando uma conversa anexada ao relatório).
+export interface RdoComment {
+  id: ID;
+  authorName: string;
+  authorRole: Role;
+  text: string;
+  createdAt: string;
+}
+
 export interface Signature {
   id: ID;
   role: "supervisor" | "cliente" | "responsavel" | "testemunha";
@@ -195,6 +208,8 @@ export interface DailyReport {
   notes: string;
   media: MediaItem[];
   expenses: Expense[];
+  // Observações/comentários (ex.: do contratante) anexados ao RDO
+  comments?: RdoComment[];
   signatures: Signature[];
   status: RdoStatus;
   createMode: "voz" | "texto" | "perguntas" | "manual";

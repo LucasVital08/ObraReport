@@ -11,11 +11,13 @@ import {
   EquipmentStatusBadge, IncidentStatusBadge,
 } from "@/components/status";
 import { Avatar } from "@/components/brand";
+import { Timeline } from "@/components/timeline";
+import { buildFinalReport } from "@/lib/ai/engine";
 import { formatBRL, formatDateBR, diffDays } from "@/lib/utils";
 import { PROJECT_STATUS_LABELS, type ProjectStatus, type ProjectDocument } from "@/lib/types";
 import {
   Building2, Plus, FileText, MapPin, User, Calendar, Wallet, Camera,
-  AlertTriangle, ListChecks, FileCheck2, Clock, Eye, Download, Trash2,
+  AlertTriangle, ListChecks, FileCheck2, Clock, Eye, Download, Trash2, ShieldCheck,
 } from "lucide-react";
 
 export default function ObraDetailPage() {
@@ -31,17 +33,22 @@ export default function ObraDetailPage() {
   const expenses = useStore((s) => s.expenses.filter((e) => e.projectId === id));
   const checklists = useStore((s) => s.checklists.filter((c) => c.projectId === id));
   const incidents = useStore((s) => s.incidents.filter((i) => i.projectId === id));
-  const documents = useStore((s) => s.documents.filter((d) => d.projectId === id));
+  const documents = useStore((s) => (s.documents ?? []).filter((d) => d.projectId === id));
+  const isClient = useStore((s) => s.user.role === "client");
   const [tab, setTab] = React.useState("visao");
 
   if (!project) return <EmptyState title="Obra não encontrada" action={<Button onClick={() => router.push("/app/obras")}>Voltar</Button>} />;
 
   const allMedia = reports.flatMap((r) => r.media);
   const totalExpenses = expenses.reduce((a, e) => a + e.amount, 0);
+  const pendingApproval = reports.filter((r) => r.status !== "aprovado").length;
 
-  const tabs = [
+  // O contratante (cliente) vê uma versão de acompanhamento: RDOs, linha do
+  // tempo, fotos e ocorrências — sem os módulos operacionais internos.
+  const allTabs = [
     { id: "visao", label: "Visão geral" },
     { id: "rdos", label: "RDOs", count: reports.length },
+    { id: "timeline", label: "Linha do tempo" },
     { id: "tarefas", label: "Tarefas", count: tasks.length },
     { id: "equipe", label: "Equipe", count: team.length },
     { id: "fotos", label: "Fotos", count: allMedia.length },
@@ -53,20 +60,27 @@ export default function ObraDetailPage() {
     { id: "documentos", label: "Documentos", count: documents.length },
     { id: "final", label: "Relatório final" },
   ];
+  const clientTabIds = ["visao", "rdos", "timeline", "fotos", "ocorrencias", "final"];
+  const tabs = isClient ? allTabs.filter((t) => clientTabIds.includes(t.id)) : allTabs;
+  const timelineItems = buildFinalReport(project, reports).linha_do_tempo;
 
   return (
     <div>
       <PageHeader title={project.name} description={`${project.client}`} backHref="/app/obras"
-        action={<Link href={`/app/rdo/novo?obra=${project.id}`}><Button><Plus size={16} /> Criar RDO</Button></Link>} />
+        action={isClient ? undefined : <Link href={`/app/rdo/novo?obra=${project.id}`}><Button><Plus size={16} /> Criar RDO</Button></Link>} />
 
       {/* Header card */}
       <Card className="overflow-hidden mb-5">
         <div className="h-24 flex items-end justify-between p-4" style={{ background: `linear-gradient(135deg, ${project.coverColor}, ${project.coverColor}cc)` }}>
           <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center text-white"><Building2 size={24} /></div>
-          <Select value={project.status} onChange={(e) => updateProject(project.id, { status: e.target.value as ProjectStatus })}
-            className="w-44 bg-white/90 text-graphite border-0">
-            {Object.entries(PROJECT_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </Select>
+          {isClient ? (
+            <Badge className="bg-white/90 text-graphite">{PROJECT_STATUS_LABELS[project.status]}</Badge>
+          ) : (
+            <Select value={project.status} onChange={(e) => updateProject(project.id, { status: e.target.value as ProjectStatus })}
+              className="w-44 bg-white/90 text-graphite border-0">
+              {Object.entries(PROJECT_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </Select>
+          )}
         </div>
         <div className="p-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
           <Info icon={<User size={15} />} label="Cliente" value={project.client} />
@@ -91,21 +105,54 @@ export default function ObraDetailPage() {
             <Stat label="Tarefas abertas" value={tasks.filter((t) => !["concluido", "cancelado"].includes(t.status)).length} icon={<ListChecks size={16} />} tone="warning" />
             <Stat label="Ocorrências abertas" value={incidents.filter((i) => i.status !== "resolvida").length} icon={<AlertTriangle size={16} />} tone="danger" />
           </div>
-          <Card className="p-5 bg-gradient-to-r from-graphite to-graphite/80 text-white border-0">
-            <div className="flex items-center gap-4 flex-wrap">
-              <FileCheck2 size={28} />
-              <div className="flex-1 min-w-[200px]">
-                <h3 className="font-bold">Relatório Final da Obra</h3>
-                <p className="text-white/80 text-sm">Consolide todos os {reports.length} RDOs, fotos, gastos e ocorrências em um único documento.</p>
+          {isClient ? (
+            <Card className="p-5 bg-gradient-to-r from-brand to-brand-dark text-white border-0">
+              <div className="flex items-center gap-4 flex-wrap">
+                <ShieldCheck size={28} />
+                <div className="flex-1 min-w-[200px]">
+                  <h3 className="font-bold">Acompanhamento do contratante</h3>
+                  <p className="text-white/85 text-sm">
+                    Você está acompanhando esta obra. {pendingApproval > 0
+                      ? `${pendingApproval} RDO(s) aguardam sua análise/aprovação.`
+                      : "Todos os RDOs já foram aprovados."}
+                  </p>
+                </div>
+                <Button variant="primary" onClick={() => setTab("rdos")}>Ver RDOs</Button>
               </div>
-              <Button variant="primary" onClick={() => setTab("final")}>Gerar agora</Button>
-            </div>
-          </Card>
+            </Card>
+          ) : (
+            <Card className="p-5 bg-gradient-to-r from-graphite to-graphite/80 text-white border-0">
+              <div className="flex items-center gap-4 flex-wrap">
+                <FileCheck2 size={28} />
+                <div className="flex-1 min-w-[200px]">
+                  <h3 className="font-bold">Relatório Final da Obra</h3>
+                  <p className="text-white/80 text-sm">Consolide todos os {reports.length} RDOs, fotos, gastos e ocorrências em um único documento.</p>
+                </div>
+                <Button variant="primary" onClick={() => setTab("final")}>Gerar agora</Button>
+              </div>
+            </Card>
+          )}
+          {!isClient && (
+            <Card className="p-4 flex items-start gap-3">
+              <span className="text-brand mt-0.5"><ShieldCheck size={18} /></span>
+              <div className="text-sm">
+                <p className="font-semibold">Acesso do contratante</p>
+                <p className="text-muted">O contratante <strong>{project.client}</strong> pode acompanhar esta obra com login próprio: visualiza os RDOs, comenta e aprova/assina, além de ver a linha do tempo gerada por IA — sem acesso aos módulos internos.</p>
+              </div>
+            </Card>
+          )}
           <RdoList reports={reports} />
         </div>
       )}
 
-      {tab === "rdos" && <RdoList reports={reports} showCreate projectId={project.id} />}
+      {tab === "rdos" && <RdoList reports={reports} showCreate={!isClient} projectId={project.id} />}
+
+      {tab === "timeline" && (
+        <Card>
+          <CardHeader title="Linha do tempo da obra" icon={<Calendar size={18} />} subtitle="Evolução da execução consolidada por IA a partir dos RDOs" />
+          <Timeline items={timelineItems} empty="Ainda não há RDOs para montar a linha do tempo." />
+        </Card>
+      )}
 
       {tab === "tarefas" && (
         <ModuleList items={tasks} href="/app/tarefas" empty="Nenhuma tarefa nesta obra"

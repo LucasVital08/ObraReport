@@ -9,18 +9,29 @@ import { formatBRL } from "@/lib/utils";
 import { Building2, Plus, FileText, MapPin, User } from "lucide-react";
 
 export default function ObrasPage() {
-  const projects = useStore((s) => s.projects);
+  const allProjects = useStore((s) => s.projects);
   const reports = useStore((s) => s.reports);
+  const user = useStore((s) => s.user);
+  const isClient = user.role === "client";
+  // O contratante só enxerga as obras vinculadas a ele.
+  const projects = isClient
+    ? allProjects.filter((p) => !user.clientProjectIds || user.clientProjectIds.includes(p.id))
+    : allProjects;
 
   return (
     <div>
-      <PageHeader title="Obras" description="Todas as suas obras e projetos"
-        action={<Link href="/app/obras/nova"><Button><Plus size={16} /> Nova obra</Button></Link>} />
+      <PageHeader title="Obras" description={isClient ? "Obras que você acompanha" : "Todas as suas obras e projetos"}
+        action={isClient ? undefined : <Link href="/app/obras/nova"><Button><Plus size={16} /> Nova obra</Button></Link>} />
 
       {projects.length === 0 ? (
+        isClient ? (
+          <Card><EmptyState icon={<Building2 size={40} />} title="Nenhuma obra vinculada"
+            description="Você ainda não acompanha nenhuma obra. Peça à construtora para liberar seu acesso." /></Card>
+        ) : (
         <Card><EmptyState icon={<Building2 size={40} />} title="Nenhuma obra cadastrada"
           description="Crie sua primeira obra para começar a registrar diários, fotos e gastos."
           action={<Link href="/app/obras/nova"><Button><Plus size={16} /> Criar primeira obra</Button></Link>} /></Card>
+        )
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((p) => {

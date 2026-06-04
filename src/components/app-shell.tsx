@@ -64,6 +64,24 @@ const BOTTOM_NAV = [
   { href: "__more__", label: "Mais", icon: Menu },
 ];
 
+// Navegação reduzida do contratante (papel "client"): acompanha as obras,
+// sem acesso aos módulos operacionais internos nem à criação de RDOs.
+const CLIENT_NAV: { group: string; items: NavItem[] }[] = [
+  {
+    group: "Acompanhamento",
+    items: [
+      { href: "/app", label: "Painel", icon: LayoutDashboard },
+      { href: "/app/obras", label: "Minhas obras", icon: Building2 },
+    ],
+  },
+];
+
+const CLIENT_BOTTOM_NAV = [
+  { href: "/app", label: "Início", icon: LayoutDashboard },
+  { href: "/app/obras", label: "Obras", icon: Building2 },
+  { href: "__more__", label: "Mais", icon: Menu },
+];
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -103,6 +121,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const isClient = user.role === "client";
+  const nav = isClient ? CLIENT_NAV : NAV;
+  const bottomNav = isClient ? CLIENT_BOTTOM_NAV : BOTTOM_NAV;
+
   const isActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
 
@@ -114,7 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/app"><Logo /></Link>
         </div>
         <nav className="flex-1 overflow-y-auto p-3 space-y-5">
-          {NAV.map((group) => (
+          {nav.map((group) => (
             <div key={group.group}>
               <p className="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">{group.group}</p>
               <div className="space-y-0.5">
@@ -140,12 +162,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="p-3 border-t border-border">
-          <Link href="/app/rdo/novo"
-            className="flex items-center justify-center gap-2 rounded-xl bg-brand text-white py-2.5 text-sm font-semibold hover:bg-brand-dark transition-colors">
-            <Sparkles size={16} /> Criar RDO com IA
-          </Link>
-        </div>
+        {!isClient && (
+          <div className="p-3 border-t border-border">
+            <Link href="/app/rdo/novo"
+              className="flex items-center justify-center gap-2 rounded-xl bg-brand text-white py-2.5 text-sm font-semibold hover:bg-brand-dark transition-colors">
+              <Sparkles size={16} /> Criar RDO com IA
+            </Link>
+          </div>
+        )}
       </aside>
 
       {/* Main column */}
@@ -182,8 +206,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Bottom nav mobile */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-surface/95 backdrop-blur">
-        <div className="grid grid-cols-5 items-end h-16 px-1">
-          {BOTTOM_NAV.map((item) => {
+        <div className={cn("grid items-end h-16 px-1", isClient ? "grid-cols-3" : "grid-cols-5")}>
+          {bottomNav.map((item) => {
             const Icon = item.icon;
             if (item.href === "__rdo__") {
               return (
@@ -224,7 +248,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button onClick={() => setMoreOpen(false)} className="p-1 text-muted"><X size={20} /></button>
             </div>
             <div className="p-4 space-y-5">
-              {NAV.map((group) => (
+              {nav.map((group) => (
                 <div key={group.group}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">{group.group}</p>
                   <div className="grid grid-cols-3 gap-2">

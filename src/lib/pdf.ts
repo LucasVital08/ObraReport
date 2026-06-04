@@ -290,43 +290,47 @@ export function generateRdoPdf(report: DailyReport, project: Project, company: C
 
   ctx.footerLabel = `Relatório Diário de Obra Nº ${pad(report.number)} — ${project.name.split("—")[0].trim()}`;
 
-  // Cabeçalho (estilo do modelo: limpo, com logo, número e data)
-  logoBox(ctx, M, 14, 16);
-  doc.setTextColor(...rgb(GRAPHITE));
+  // Cabeçalho — faixa laranja (modelo original / capa do RDO)
+  const bannerH = 40;
+  doc.setFillColor(...rgb(BRAND));
+  doc.rect(0, 0, PW, bannerH, "F");
+
+  // Caixa de logo branca com as iniciais da empresa em laranja
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(M, 11, 18, 18, 3, 3, "F");
+  doc.setTextColor(...rgb(BRAND));
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.text(
+    company.logoText || company.name.slice(0, 3).toUpperCase(),
+    M + 9, 21.5, { align: "center" },
+  );
+
+  // Título e empresa (branco)
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(17);
+  doc.text("Relatório Diário de Obra", M + 24, 18);
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
-  doc.text(company.name, M + 20, 20);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...rgb(MUTED));
-  doc.text(company.city || "", M + 20, 25);
+  doc.text(`${company.name}${company.city ? `  •  ${company.city}` : ""}`, M + 24, 25.5);
 
+  // Número do RDO e data (branco, à direita)
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(19);
+  doc.text(`RDO Nº ${pad(report.number)}`, PW - M, 18, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.text(formatDateBR(report.date), PW - M, 25.5, { align: "right" });
+
+  // Nome da obra (subtítulo, abaixo da faixa)
+  ctx.y = bannerH + 9;
   doc.setTextColor(...rgb(NAVY));
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(`RDO Nº ${pad(report.number)}`, PW - M, 20, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...rgb(MUTED));
-  doc.text(formatDateBR(report.date), PW - M, 26, { align: "right" });
-
-  doc.setDrawColor(...rgb(NAVY));
-  doc.setLineWidth(0.6);
-  doc.line(M, 30, PW - M, 30);
-  doc.setLineWidth(0.2);
-
-  // Título
-  ctx.y = 38;
-  doc.setTextColor(...rgb(NAVY));
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.text("RELATÓRIO DIÁRIO DE OBRA", M, ctx.y);
-  ctx.y += 6;
-  doc.setTextColor(...rgb(GRAPHITE));
-  doc.setFontSize(11);
+  doc.setFontSize(12.5);
   const projName = doc.splitTextToSize(project.name, PW - 2 * M);
   doc.text(projName, M, ctx.y);
-  ctx.y += projName.length * 5.5 + 3;
+  ctx.y += projName.length * 5.5 + 4;
 
   // Bloco de identificação
   kvBlock(ctx, [

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { Button, Card } from "@/components/ui";
+import { PLANS, formatPlanPrice } from "@/lib/plans";
 import {
   Mic, FileText, MessageSquareText, Images, PenLine, Wallet, Users,
   CheckCircle2, ArrowRight, Sparkles, ShieldCheck, Smartphone, FileCheck2,
@@ -159,26 +160,28 @@ export default function LandingPage() {
       <section id="planos" className="bg-surface border-y border-border">
         <div className="max-w-6xl mx-auto px-4 py-16">
           <h2 className="text-2xl sm:text-3xl font-bold text-center">Planos para cada tamanho de operação</h2>
-          <div className="mt-10 grid md:grid-cols-3 gap-5">
-            {[
-              ["Básico", "R$ 197", ["1 obra ativa", "Até 5 RDOs/mês", "PDF básico", "1 administrador"], false],
-              ["Profissional", "R$ 497", ["Até 5 obras", "RDOs ilimitados", "RDO por voz e IA", "Relatório final", "Até 10 usuários"], true],
-              ["Empresa", "R$ 997", ["Obras ilimitadas", "Usuários ilimitados", "Modelos de PDF", "Marca própria", "Suporte prioritário"], false],
-            ].map(([name, price, feats, highlight]) => (
-              <Card key={name as string} className={highlight ? "p-6 border-brand ring-2 ring-brand/30 relative" : "p-6"}>
-                {highlight ? <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand text-white text-xs font-semibold px-3 py-1">Mais popular</span> : null}
-                <h3 className="font-bold text-lg">{name as string}</h3>
-                <p className="mt-2"><span className="text-3xl font-extrabold">{price as string}</span><span className="text-muted">/mês</span></p>
-                <ul className="mt-4 space-y-2">
-                  {(feats as string[]).map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm"><CheckCircle2 size={16} className="text-success shrink-0" /> {f}</li>
-                  ))}
-                </ul>
-                <Link href="/register" className="block mt-5">
-                  <Button className="w-full" variant={highlight ? "primary" : "outline"}>Assinar agora</Button>
-                </Link>
-              </Card>
-            ))}
+          <p className="text-center text-muted mt-2">Comece grátis. Inteligência artificial já a partir do plano Básico.</p>
+          <div className="mt-10 grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
+            {PLANS.map((p) => {
+              const isFree = p.priceMonthly === null;
+              return (
+                <Card key={p.id} className={p.highlight ? "p-6 border-brand ring-2 ring-brand/30 relative" : "p-6 relative"}>
+                  {p.highlight ? <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand text-white text-xs font-semibold px-3 py-1">Mais popular</span> : null}
+                  <h3 className="font-bold text-lg">{p.name}</h3>
+                  <p className="text-xs text-muted">{p.tagline}</p>
+                  <p className="mt-2"><span className="text-3xl font-extrabold">{formatPlanPrice(p.priceMonthly)}</span><span className="text-muted">{isFree ? "" : "/mês"}</span></p>
+                  {!isFree && p.priceAnnual !== null && <p className="text-xs text-muted">ou {formatPlanPrice(p.priceAnnual)}/ano</p>}
+                  <ul className="mt-4 space-y-2">
+                    {p.shortFeatures.map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-sm"><CheckCircle2 size={16} className="text-success shrink-0" /> {f}</li>
+                    ))}
+                  </ul>
+                  <Link href="/register" className="block mt-5">
+                    <Button className="w-full" variant={p.highlight ? "primary" : "outline"}>{isFree ? "Começar grátis" : "Assinar agora"}</Button>
+                  </Link>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>

@@ -1,6 +1,7 @@
 import type {
   Checklist, Company, Contact, DailyReport, Equipment, Expense, Incident,
   Material, Project, Task, TeamMember, TimeCard, User, MediaItem, Providencia,
+  RdoComment, Role,
 } from "@/lib/types";
 import { colorFromString, uid } from "@/lib/utils";
 
@@ -252,6 +253,10 @@ function prov(description: string, responsible: string, priority: Providencia["p
   return { description, responsible, priority };
 }
 
+function cmt(authorName: string, authorRole: Role, text: string, createdAt: string): RdoComment {
+  return { id: uid("cmt"), authorName, authorRole, text, createdAt };
+}
+
 function usinaRdo001(p: Project): DailyReport {
   return {
     ...usinaBase(p.id, 1, "2026-06-01"),
@@ -309,6 +314,10 @@ function usinaRdo001(p: Project): DailyReport {
       { phase: "durante", caption: "Apoio — guindaste (PHD) e equipe no pátio de manutenção." },
     ]),
     expenses: [],
+    comments: [
+      cmt("Leone", "supervisor", "Equipe iniciou a lavagem e o lixamento. Tinta ainda não chegou ao local.", "2026-06-01T18:10:00.000Z"),
+      cmt("Carlos Andrade", "client", "Recebido e revisado. Vou agilizar a tinta com o Matheus. RDO aprovado.", "2026-06-01T20:32:00.000Z"),
+    ],
     signatures: [],
     status: "aprovado",
     createMode: "voz",
@@ -376,6 +385,9 @@ function usinaRdo002(p: Project): DailyReport {
       { phase: "durante", caption: "Vista superior — inspeção da calha/esteira e pontos de lixamento." },
     ]),
     expenses: [],
+    comments: [
+      cmt("Carlos Andrade", "client", "As tintas da Tech Tintas já foram retiradas? Confirmem antes de eu aprovar este RDO.", "2026-06-02T19:05:00.000Z"),
+    ],
     signatures: [],
     status: "enviado",
     createMode: "voz",
