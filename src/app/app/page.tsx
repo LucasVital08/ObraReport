@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { Card, CardHeader, Stat, Button, EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/brand";
 import { ProjectStatusBadge, RdoStatusBadge } from "@/components/status";
+import { GamificationCard } from "@/components/gamification-card";
 import { formatBRL, formatDateBR, todayISO, diffDays } from "@/lib/utils";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -55,10 +56,10 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Stat label="Minhas obras" value={myProjects.length} icon={<Building2 size={16} />} tone="brand" />
-          <Stat label="RDOs recebidos" value={myReports.length} icon={<FileText size={16} />} tone="info" />
-          <Stat label="Aguardando aprovação" value={awaiting.length} icon={<PenLine size={16} />} tone="warning" />
-          <Stat label="Fotos da obra" value={myPhotos} icon={<Images size={16} />} tone="success" />
+          <Stat href="/app/obras" label="Minhas obras" value={myProjects.length} icon={<Building2 size={16} />} tone="brand" />
+          <Stat href="/app/obras" label="RDOs recebidos" value={myReports.length} icon={<FileText size={16} />} tone="info" />
+          <Stat href="/app/obras" label="Aguardando aprovação" value={awaiting.length} icon={<PenLine size={16} />} tone="warning" />
+          <Stat href="/app/obras" label="Fotos da obra" value={myPhotos} icon={<Images size={16} />} tone="success" />
         </div>
 
         <div className="grid lg:grid-cols-3 gap-5">
@@ -146,14 +147,14 @@ export default function DashboardPage() {
 
       {/* Indicadores */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="Obras ativas" value={activeProjects.length} icon={<Building2 size={16} />} tone="brand" hint={`${projects.length} no total`} />
-        <Stat label="RDOs no mês" value={rdosMonth.length} icon={<FileText size={16} />} tone="info" />
-        <Stat label="Pendentes de assinatura" value={pendingSignature.length} icon={<PenLine size={16} />} tone="warning" />
-        <Stat label="Tarefas pendentes" value={tasksPending.length} icon={<ListChecks size={16} />} tone="neutral" hint={`${tasksDone.length} concluídas`} />
-        <Stat label="Gastos do mês" value={formatBRL(expensesMonth)} icon={<Wallet size={16} />} tone="success" />
-        <Stat label="Ocorrências abertas" value={openIncidents.length} icon={<AlertTriangle size={16} />} tone="danger" />
-        <Stat label="Presentes hoje" value={presentToday} icon={<Users size={16} />} tone="info" />
-        <Stat label="Fotos / Vídeos" value={`${totalPhotos} / ${totalVideos}`} icon={<Images size={16} />} tone="brand" />
+        <Stat href="/app/obras" label="Obras ativas" value={activeProjects.length} icon={<Building2 size={16} />} tone="brand" hint={`${projects.length} no total`} />
+        <Stat href="/app/relatorios" label="RDOs no mês" value={rdosMonth.length} icon={<FileText size={16} />} tone="info" />
+        <Stat href="/app/relatorios" label="Pendentes de assinatura" value={pendingSignature.length} icon={<PenLine size={16} />} tone="warning" />
+        <Stat href="/app/tarefas" label="Tarefas pendentes" value={tasksPending.length} icon={<ListChecks size={16} />} tone="neutral" hint={`${tasksDone.length} concluídas`} />
+        <Stat href="/app/gastos" label="Gastos do mês" value={formatBRL(expensesMonth)} icon={<Wallet size={16} />} tone="success" />
+        <Stat href="/app/ocorrencias" label="Ocorrências abertas" value={openIncidents.length} icon={<AlertTriangle size={16} />} tone="danger" />
+        <Stat href="/app/ponto" label="Presentes hoje" value={presentToday} icon={<Users size={16} />} tone="info" />
+        <Stat href="/app/fotos" label="Fotos / Vídeos" value={`${totalPhotos} / ${totalVideos}`} icon={<Images size={16} />} tone="brand" />
       </div>
 
       {/* Acompanhamento das obras: gráfico de atividade + painel por obra */}
@@ -230,6 +231,9 @@ export default function DashboardPage() {
           </div>
         </Card>
       )}
+
+      {/* Gamificação: nível, XP, ofensiva e conquistas */}
+      <GamificationCard />
 
       <div className="grid lg:grid-cols-3 gap-5">
         {/* Obras ativas */}

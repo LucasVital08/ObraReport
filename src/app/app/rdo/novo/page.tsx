@@ -317,14 +317,49 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
     const merged = { ...answers };
     const t = speech.transcript.trim();
     if (t) merged[current.key] = (merged[current.key] ? merged[current.key] + " " : "") + t;
-    // Compõe um texto a partir das respostas e roda a IA, mas preserva respostas diretas.
-    const composed = QUESTIONS.map((q) => merged[q.key]).filter(Boolean).join(". ");
+
+    // Descarta respostas negativas/vazias para não gerar registros falsos.
+    const isNegative = (s: string) => {
+      const v = s.trim().toLowerCase();
+      return v === "-" || /^(n[ãa]o|nada|nenhum|nenhuma|sem|n\/a)\b/.test(v);
+    };
+
+    // 1) Compilado "pergunta + resposta" — vira o relato original do RDO.
+    const qa = QUESTIONS
+      .map((q) => ({ q: q.q, a: (merged[q.key] || "").trim() }))
+      .filter((x) => x.a)
+      .map((x) => `• ${x.q}\n${x.a}`)
+      .join("\n\n");
+
+    // 2) Texto guiado para a IA: prefixos por categoria orientam a
+    //    classificação (atividades, equipe, ocorrências, solicitações,
+    //    materiais, gastos, riscos e pendências).
+    const guided: string[] = [];
+    const add = (prefix: string, key: string) => {
+      const v = (merged[key] || "").trim();
+      if (v && !isNegative(v)) guided.push(prefix + v);
+    };
+    add("", "atividades");
+    add("Equipe presente na obra: ", "equipe");
+    add("Ocorrência/impedimento: ", "problema");
+    add("Solicitação do cliente: ", "solicitacao");
+    add("Materiais e equipamentos utilizados: ", "materiais");
+    add("Gasto: ", "gastos");
+    add("Risco de segurança: ", "seguranca");
+    add("Pendência para o próximo dia: ", "pendencia");
+    const composed = guided.join(". ");
+
+    // 3) Trata com a IA e aplica ao RDO, preservando o compilado como relato.
     const ai = organizeRdoText(composed);
-    let d = applyAiResult(draft, ai, composed);
-    // sobrepõe campos diretos das perguntas-chave
+    let d = applyAiResult(draft, ai, qa || composed);
+
+    // 4) Inclui as informações já precisas (campos diretos das perguntas).
     if (merged.chegada) d = { ...d, arrival: extractTime(merged.chegada) || d.arrival };
     if (merged.saida) d = { ...d, departure: extractTime(merged.saida) || d.departure };
-    if (merged.obs) d = { ...d, notes: merged.obs };
+    const noteParts = [merged.obs, merged.status ? `Status do serviço: ${merged.status}` : ""]
+      .map((s) => (s || "").trim()).filter(Boolean);
+    if (noteParts.length) d = { ...d, notes: noteParts.join(" — ") };
+
     onDone(d);
   }
 

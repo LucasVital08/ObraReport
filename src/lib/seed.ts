@@ -101,6 +101,82 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     createdAt: new Date().toISOString(),
   };
 
+  // ===== Projeto 3: Paradas de ônibus metálicas — Prefeitura de São João do Monte =====
+  const paradas: Project = {
+    id: "prj_paradas",
+    companyId: COMPANY_ID,
+    name: "Prefeitura de São João do Monte — Fabricação e instalação de 4 paradas de ônibus em estrutura metálica",
+    client: "Prefeitura de São João do Monte",
+    address: "Sede e pontos urbanos — São João do Monte",
+    technicalLead: "Eng. Responsável Técnico",
+    supervisor: "Ronaldo Ferraz",
+    startDate: "2026-05-18",
+    expectedEndDate: "2026-06-15",
+    status: "em_andamento",
+    budget: 185000,
+    description:
+      "Fabricação em oficina e instalação de 4 abrigos de ônibus em estrutura metálica para a Prefeitura: corte, dobra e soldagem dos pórticos, cobertura, pintura anticorrosiva, transporte e instalação com bases de concreto nos pontos urbanos.",
+    coverColor: "#0e7490",
+    createdAt: new Date().toISOString(),
+  };
+
+  // ===== Projeto 4: Base/estrutura para placas solares — Condomínio Maria Lacerda =====
+  const solar: Project = {
+    id: "prj_solar",
+    companyId: COMPANY_ID,
+    name: "Condomínio Maria Lacerda — Instalação de base e estrutura para placas solares (Boa Viagem)",
+    client: "Condomínio Maria Lacerda",
+    address: "Cobertura do bloco principal — Boa Viagem",
+    technicalLead: "Eng. Eletricista Responsável",
+    supervisor: "Diego Martins",
+    startDate: "2026-05-25",
+    expectedEndDate: "2026-06-12",
+    status: "em_andamento",
+    budget: 96000,
+    description:
+      "Instalação da estrutura de sustentação para sistema fotovoltaico no Condomínio Maria Lacerda: vistoria da laje, fixação e impermeabilização de suportes, montagem dos perfis de alumínio, aterramento, instalação dos módulos e comissionamento.",
+    coverColor: "#16a34a",
+    createdAt: new Date().toISOString(),
+  };
+
+  // ===== Projeto 5: Galpão industrial metálico — Logística Capixaba (Serra) =====
+  const galpao: Project = {
+    id: "prj_galpao",
+    companyId: COMPANY_ID,
+    name: "Logística Capixaba — Estrutura metálica e cobertura termoacústica de galpão (Serra)",
+    client: "Logística Capixaba Ltda",
+    address: "Distrito Industrial — Serra - ES",
+    technicalLead: "Eng. Responsável Técnico",
+    supervisor: "Sérgio Lopes",
+    startDate: "2026-05-20",
+    expectedEndDate: "2026-07-05",
+    status: "em_andamento",
+    budget: 540000,
+    description:
+      "Montagem da estrutura metálica de um galpão logístico: içamento de pilares e vigas, tesouras de cobertura, terças, cobertura termoacústica, fechamentos laterais e acabamentos, com trabalho em altura e uso de guindaste.",
+    coverColor: "#475569",
+    createdAt: new Date().toISOString(),
+  };
+
+  // ===== Projeto 6: Revitalização e pintura de fachada — Edifício Oceania (Vitória) =====
+  const reforma: Project = {
+    id: "prj_reforma",
+    companyId: COMPANY_ID,
+    name: "Edifício Oceania — Revitalização e pintura de fachada com manutenção predial (Vitória)",
+    client: "Edifício Oceania",
+    address: "Orla de Camburi — Vitória - ES",
+    technicalLead: "Responsável Técnico",
+    supervisor: "Anderson Reis",
+    startDate: "2026-05-26",
+    expectedEndDate: "2026-06-18",
+    status: "em_andamento",
+    budget: 128000,
+    description:
+      "Revitalização da fachada do edifício: lavagem e preparação da superfície, tratamento de trincas e oxidação, pintura acrílica em duas demãos, pintura de esquadrias e guarda-corpos metálicos e pequenos reparos de manutenção predial, com trabalho em altura via balancim.",
+    coverColor: "#dc2626",
+    createdAt: new Date().toISOString(),
+  };
+
   const team: TeamMember[] = [
     tm("Alan", "Encarregado", "27 99999-1001", drywall.id),
     tm("Leone", "Responsável de campo", "27 99999-2001", usina.id),
@@ -109,12 +185,28 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     tm("William Costa", "Lixador", "27 99999-2004", usina.id),
     tm("Geidson Souza", "Ajudante", "27 99999-2005", usina.id),
     tm("Matheus", "Suprimentos", "27 99999-3001", usina.id),
+    tm("Ronaldo Ferraz", "Encarregado", "27 99999-4001", paradas.id),
+    tm("Júnior Alves", "Soldador", "27 99999-4002", paradas.id),
+    tm("Cleiton Dias", "Montador", "27 99999-4003", paradas.id),
+    tm("Diego Martins", "Encarregado", "27 99999-5001", solar.id),
+    tm("Patrick Nunes", "Eletricista", "27 99999-5002", solar.id),
+    tm("Wesley Lima", "Ajudante", "27 99999-5003", solar.id),
+    tm("Sérgio Lopes", "Encarregado", "27 99999-6001", galpao.id),
+    tm("Fábio Rocha", "Montador", "27 99999-6002", galpao.id),
+    tm("Edson Maia", "Soldador", "27 99999-6003", galpao.id),
+    tm("Anderson Reis", "Encarregado", "27 99999-7001", reforma.id),
+    tm("Marcos Vieira", "Pintor", "27 99999-7002", reforma.id),
+    tm("Tiago Souza", "Ajudante", "27 99999-7003", reforma.id),
   ];
 
   const reports: DailyReport[] = [
     ...buildDrywallReports(drywall),
     usinaRdo001(usina),
     usinaRdo002(usina),
+    ...buildReports(paradas, PARADAS_DAYS, PARADAS_CFG),
+    ...buildReports(solar, SOLAR_DAYS, SOLAR_CFG),
+    ...buildReports(galpao, GALPAO_DAYS, GALPAO_CFG),
+    ...buildReports(reforma, REFORMA_DAYS, REFORMA_CFG),
   ];
 
   const tasks: Task[] = [
@@ -125,6 +217,11 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     task(drywall.id, "Remover luminárias do próximo trecho", "Alan", "media", "a_fazer", "2026-05-29"),
     task(drywall.id, "Segregar e destinar resíduos da desmontagem", "Equipe RF", "media", "em_andamento", "2026-05-29"),
     task(drywall.id, "Conferir travamento da plataforma JLG", "Alan", "alta", "concluido", "2026-05-28"),
+    task(paradas.id, "Confirmar pontos de instalação com a Prefeitura", "Ronaldo Ferraz", "alta", "em_andamento", "2026-05-30"),
+    task(paradas.id, "Comprar tinta anticorrosiva para os abrigos", "Ronaldo Ferraz", "media", "concluido", "2026-05-24"),
+    task(solar.id, "Agendar comissionamento com a concessionária", "Diego Martins", "media", "a_fazer", "2026-06-05"),
+    task(galpao.id, "Conferir torque dos parafusos estruturais", "Sérgio Lopes", "alta", "em_andamento", "2026-05-31"),
+    task(reforma.id, "Aprovar cor final da fachada com o síndico", "Anderson Reis", "media", "concluido", "2026-05-28"),
   ];
 
   const timeCards: TimeCard[] = [
@@ -143,6 +240,13 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     mat(usina.id, "Plug/divisor de energia", "un", "solicitado", 0, 2, "Suprimentos RF", 36),
     mat(drywall.id, "Placa de drywall/gesso", "un", "usado", 0, 0, "—", 0),
     mat(drywall.id, "Disco de corte", "un", "usado", 24, 30, "Suprimentos RF", 9),
+    mat(paradas.id, "Tubo metalon 40x40", "barra", "comprado", 48, 60, "Ferro & Aço Capixaba", 86),
+    mat(paradas.id, "Tinta anticorrosiva", "balde", "usado", 6, 8, "Tech Tintas", 190),
+    mat(solar.id, "Perfil de alumínio (trilho)", "barra", "entregue", 28, 28, "SolarFix", 70),
+    mat(solar.id, "Módulo fotovoltaico 550W", "un", "entregue", 24, 24, "SolarFix", 720),
+    mat(galpao.id, "Telha termoacústica", "m²", "entregue", 0, 1200, "MetalCobre", 95),
+    mat(galpao.id, "Parafuso estrutural", "un", "comprado", 0, 900, "Ferro & Aço Capixaba", 3),
+    mat(reforma.id, "Tinta acrílica premium", "balde", "usado", 9, 14, "Tech Tintas", 220),
   ];
 
   const equipment: Equipment[] = [
@@ -152,6 +256,12 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     eq(usina.id, "Esmerilhadeira", "Elétrica", "em_uso", "Geidson Souza", "Boa"),
     eq(usina.id, "Caminhão pipa (apoio)", "Apoio", "disponivel", "Lidermac", "Operacional"),
     eq(usina.id, "Guindaste PHD (apoio)", "Apoio", "disponivel", "Lidermac", "Operacional"),
+    eq(paradas.id, "Máquina de solda MIG", "Solda", "em_uso", "Júnior Alves", "Operacional"),
+    eq(paradas.id, "Caminhão munck", "Apoio", "disponivel", "Ronaldo Ferraz", "Operacional"),
+    eq(solar.id, "Chave de torque", "Manual", "em_uso", "Patrick Nunes", "Boa"),
+    eq(galpao.id, "Guindaste 30t", "Elevação", "em_uso", "Sérgio Lopes", "Operacional"),
+    eq(galpao.id, "Plataforma articulada", "Elevação", "em_uso", "Fábio Rocha", "Operacional"),
+    eq(reforma.id, "Balancim elétrico", "Elevação", "em_uso", "Anderson Reis", "Operacional"),
   ];
 
   const checklists: Checklist[] = [
@@ -169,6 +279,20 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
       ["Luminárias removidas com segurança", true],
       ["Trecho liberado para a próxima etapa", true],
     ]),
+    checklist(galpao.id, "Checklist — Montagem de estrutura metálica em altura", "estrutura metálica", "Sérgio Lopes", [
+      ["Cinto de segurança e linha de vida instalados", true],
+      ["Guindaste inspecionado e operador habilitado", true],
+      ["Área de içamento isolada e sinalizada", true],
+      ["Prumo e nível dos pilares conferidos", false],
+      ["Torque dos parafusos estruturais verificado", false],
+    ]),
+    checklist(solar.id, "Checklist — Instalação fotovoltaica", "energia solar", "Diego Martins", [
+      ["Estrutura de fixação impermeabilizada", true],
+      ["Aterramento da estrutura executado", true],
+      ["Torque dos módulos conferido", false],
+      ["Cabeamento CC identificado e organizado", false],
+      ["Comissionamento e testes realizados", false],
+    ]),
   ];
 
   const incidents: Incident[] = [
@@ -184,6 +308,18 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     inc(drywall.id, "Trabalho em altura no corredor", "risco de segurança", "media",
       "Desmontagem em altura com plataforma elevatória sobre o corredor principal exige atenção contínua aos EPIs e isolamento da área.",
       "Alan", "resolvida", "Área isolada e plataforma travada antes da operação."),
+    inc(paradas.id, "Atraso na entrega do aço", "falta de material", "media",
+      "O fornecedor atrasou a entrega dos tubos metalon, impactando o início da fabricação dos pórticos.",
+      "Ronaldo Ferraz", "resolvida", "Compra emergencial em fornecedor alternativo para não parar a oficina."),
+    inc(solar.id, "Ponto de infiltração na laje", "impedimento técnico", "media",
+      "Identificado ponto de infiltração próximo a uma fixação; necessária impermeabilização antes da montagem dos suportes.",
+      "Diego Martins", "em_andamento", "Aplicar manta de impermeabilização nos pontos de fixação."),
+    inc(galpao.id, "Vento forte na montagem em altura", "risco de segurança", "alta",
+      "Rajadas de vento exigiram a interrupção temporária do içamento das tesouras de cobertura.",
+      "Sérgio Lopes", "resolvida", "Içamento retomado em janela de tempo favorável, com sinalização reforçada."),
+    inc(reforma.id, "Chuva durante a pintura", "chuva", "media",
+      "Chuva no período da tarde interrompeu a aplicação da segunda demão na fachada.",
+      "Anderson Reis", "em_andamento", "Reprogramar a demão para um dia de tempo firme."),
   ];
 
   const expenses: Expense[] = [
@@ -194,6 +330,14 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     exp(drywall.id, "Locação plataforma JLG (diária)", "locação", 680, "Alan"),
     exp(drywall.id, "Discos de corte", "ferramenta", 216, "Alan"),
     exp(drywall.id, "Descarte de resíduos", "transporte", 140, "Alan"),
+    exp(paradas.id, "Aço e tubos metalon", "material", 8400, "Ronaldo Ferraz"),
+    exp(paradas.id, "Frete das estruturas (caminhão munck)", "transporte", 1200, "Ronaldo Ferraz"),
+    exp(solar.id, "Suportes e perfis de alumínio", "material", 3200, "Diego Martins"),
+    exp(solar.id, "Locação de andaime", "locação", 450, "Diego Martins"),
+    exp(galpao.id, "Locação de guindaste (diária)", "locação", 2400, "Sérgio Lopes"),
+    exp(galpao.id, "Telha termoacústica", "material", 18600, "Sérgio Lopes"),
+    exp(reforma.id, "Tinta acrílica e fundo preparador", "material", 2750, "Anderson Reis"),
+    exp(reforma.id, "Locação de balancim", "locação", 1800, "Anderson Reis"),
   ];
 
   const contacts: Contact[] = [
@@ -203,10 +347,14 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     ct("Tech Tintas", "fornecedor", "27 3322-5050", "vendas@techtintas.com.br", "Tech Tintas"),
     ct("Matheus — Suprimentos", "fornecedor", "27 99999-3001", "suprimentos@rfsolucoes.com.br", "RF Soluções"),
     ct("Leone — Responsável de campo", "equipe", "27 99999-2001", "leone@rfsolucoes.com.br", "RF Soluções"),
+    ct("Prefeitura de São João do Monte", "cliente", "33 3333-0000", "obras@saojoaodomonte.gov.br", "Prefeitura de São João do Monte"),
+    ct("Condomínio Maria Lacerda", "cliente", "81 3333-1000", "sindico@marialacerda.com.br", "Condomínio Maria Lacerda"),
+    ct("Logística Capixaba Ltda", "cliente", "27 3333-2000", "obras@logisticacapixaba.com.br", "Logística Capixaba"),
+    ct("Edifício Oceania", "cliente", "27 3333-3000", "sindico@edoceania.com.br", "Edifício Oceania"),
   ];
 
   return {
-    user, company, projects: [drywall, usina], reports, tasks, team, timeCards,
+    user, company, projects: [drywall, usina, paradas, solar, galpao, reforma], reports, tasks, team, timeCards,
     materials, equipment, checklists, incidents, expenses, contacts,
   };
 
@@ -472,3 +620,165 @@ function addDays(iso: string, n: number): string {
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 }
+
+// ============ Builder genérico de RDOs para as demais obras ============
+interface GenDay {
+  titulo: string;
+  atividades: string[];
+  resultado: string;
+  ocorrencias?: string[];
+  proximo?: string[];
+}
+interface GenCfg {
+  start: string;
+  responsible: string;
+  arrival: string;
+  departure: string;
+  weather: string;
+  team: { name: string; role: string }[];
+  materials: string[];
+  equipment: string[];
+  risks?: string[];
+}
+
+function buildReports(p: Project, days: GenDay[], cfg: GenCfg): DailyReport[] {
+  return days.map((d, i) => {
+    const number = i + 1;
+    const last = i === days.length - 1;
+    const phaseSeq: MediaItem["phase"][] = i === 0 ? ["antes", "durante"] : last ? ["durante", "depois", "depois"] : ["durante", "durante"];
+    return {
+      id: uid("rdo"), companyId: COMPANY_ID, projectId: p.id, number, date: addDays(cfg.start, i),
+      responsible: cfg.responsible, supervisor: cfg.responsible,
+      arrival: cfg.arrival, departure: cfg.departure,
+      weather: cfg.weather, siteCondition: d.titulo,
+      team: cfg.team.map((t) => ({ name: t.name, role: t.role, present: true })),
+      activities: acts(d.atividades.map((x) => ({ d: x }))),
+      materials: items(cfg.materials),
+      materialsRequested: [],
+      equipment: items(cfg.equipment),
+      equipmentRequested: [],
+      occurrences: d.ocorrencias || [],
+      risks: cfg.risks || [],
+      impediments: [],
+      clientRequests: [],
+      pending: last ? ["Vistoria final e formalização da entrega do trecho concluído"] : ["Continuidade conforme cronograma no próximo dia"],
+      nextDayPlan: d.proximo || ["Dar sequência às próximas etapas previstas no cronograma."],
+      executiveSummary: d.resultado,
+      notes: `Etapa: ${d.titulo}.`,
+      media: photos(phaseSeq.map((phase, k) => ({ phase, caption: `${d.titulo} — registro ${k + 1}` }))),
+      expenses: [],
+      signatures: [],
+      status: last ? "pronto_revisao" : number % 6 === 0 ? "enviado" : "aprovado",
+      createMode: number % 3 === 0 ? "perguntas" : number % 2 === 0 ? "texto" : "voz",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as DailyReport;
+  });
+}
+
+// ---- Paradas de ônibus metálicas (Prefeitura de São João do Monte) ----
+const PARADAS_CFG: GenCfg = {
+  start: "2026-05-18", responsible: "Ronaldo Ferraz", arrival: "07:00", departure: "17:00",
+  weather: "Ensolarado",
+  team: [
+    { name: "Ronaldo Ferraz", role: "Encarregado" },
+    { name: "Júnior Alves", role: "Soldador" },
+    { name: "Cleiton Dias", role: "Montador" },
+  ],
+  materials: ["Tubo metalon 40x40", "Chapa de aço", "Eletrodos/arame de solda", "Tinta anticorrosiva"],
+  equipment: ["Máquina de solda MIG", "Esmerilhadeira", "Furadeira", "Caminhão munck"],
+  risks: ["Soldagem e corte — uso de máscara, luvas e proteção contra fagulhas"],
+};
+const PARADAS_DAYS: GenDay[] = [
+  { titulo: "Mobilização e conferência do projeto", atividades: ["Recebimento do projeto executivo das 4 paradas e conferência de medidas.", "Separação de materiais e organização da oficina.", "Planejamento das frentes de fabricação."], resultado: "Projeto conferido e oficina preparada para iniciar a fabricação dos abrigos." },
+  { titulo: "Corte e preparação do aço", atividades: ["Corte dos tubos metalon e perfis conforme projeto.", "Preparação das peças das colunas e travessas.", "Identificação e organização das peças por parada."], resultado: "Peças cortadas e preparadas para a montagem dos pórticos." },
+  { titulo: "Montagem dos pórticos (paradas 1 e 2)", atividades: ["Dobra de chapas e montagem dos pórticos das paradas 1 e 2.", "Conferência de esquadro e alinhamento.", "Pré-fixação para soldagem."], resultado: "Pórticos das paradas 1 e 2 montados e alinhados." },
+  { titulo: "Soldagem das estruturas", atividades: ["Soldagem dos pórticos e travessas.", "Reforço dos nós estruturais.", "Conferência de nível e esquadro pós-solda."], resultado: "Estruturas soldadas e verificadas estruturalmente.", ocorrencias: ["Necessário reforço em dois nós estruturais identificados na inspeção."] },
+  { titulo: "Cobertura e fechamentos", atividades: ["Instalação das telhas/policarbonato de cobertura.", "Montagem dos fechamentos laterais.", "Instalação de bancos das estruturas."], resultado: "Cobertura e fechamentos instalados nas estruturas." },
+  { titulo: "Tratamento e pintura", atividades: ["Lixamento e limpeza das estruturas.", "Aplicação de fundo anticorrosivo.", "Pintura final das 4 estruturas."], resultado: "Estruturas tratadas e pintadas, prontas para transporte." },
+  { titulo: "Carregamento e transporte", atividades: ["Carregamento das estruturas no caminhão munck.", "Deslocamento até São João do Monte.", "Descarga organizada nos pontos de instalação."], resultado: "Estruturas transportadas e posicionadas para instalação." },
+  { titulo: "Parada 1 — base e instalação", atividades: ["Execução da base de concreto e chumbadores (Praça Central).", "Fixação e nivelamento da estrutura da parada 1.", "Instalação de bancos e placa de identificação."], resultado: "Parada 1 instalada e nivelada na Praça Central." },
+  { titulo: "Parada 2 — base e instalação", atividades: ["Base de concreto e chumbadores (Av. Brasil).", "Fixação e nivelamento da estrutura da parada 2.", "Acabamento e conferência da cobertura."], resultado: "Parada 2 instalada na Av. Brasil." },
+  { titulo: "Parada 3 — base e instalação", atividades: ["Base e chumbadores (Bairro São José).", "Fixação e nivelamento da estrutura da parada 3.", "Conferência de cobertura e fechamentos."], resultado: "Parada 3 instalada no Bairro São José." },
+  { titulo: "Parada 4 — base e instalação", atividades: ["Base e chumbadores (Rodoviária).", "Fixação e nivelamento da estrutura da parada 4.", "Instalação de bancos e acabamentos."], resultado: "Parada 4 instalada na Rodoviária." },
+  { titulo: "Retoques, limpeza e entrega", atividades: ["Retoques de pintura e ajustes finais nas 4 paradas.", "Limpeza dos pontos de instalação.", "Vistoria final com a equipe da Prefeitura."], resultado: "As 4 paradas concluídas, limpas e vistoriadas com a Prefeitura." },
+];
+
+// ---- Base/estrutura para placas solares (Condomínio Maria Lacerda) ----
+const SOLAR_CFG: GenCfg = {
+  start: "2026-05-25", responsible: "Diego Martins", arrival: "08:00", departure: "16:30",
+  weather: "Ensolarado",
+  team: [
+    { name: "Diego Martins", role: "Encarregado" },
+    { name: "Patrick Nunes", role: "Eletricista" },
+    { name: "Wesley Lima", role: "Ajudante" },
+  ],
+  materials: ["Suportes de fixação", "Perfil de alumínio (trilho)", "Módulo fotovoltaico 550W", "Cabo solar CC"],
+  equipment: ["Furadeira de impacto", "Chave de torque", "Multímetro", "Andaime"],
+  risks: ["Trabalho em cobertura/altura — uso de cinto, linha de vida e calçado adequado"],
+};
+const SOLAR_DAYS: GenDay[] = [
+  { titulo: "Vistoria técnica da cobertura", atividades: ["Vistoria da laje/cobertura e do quadro elétrico.", "Conferência do layout das placas com o projeto.", "Identificação dos pontos de fixação."], resultado: "Cobertura vistoriada e layout dos módulos confirmado." },
+  { titulo: "Marcação e locação dos pontos", atividades: ["Marcação dos pontos de fixação dos suportes.", "Conferência de afastamentos e alinhamento.", "Organização do canteiro na cobertura."], resultado: "Pontos de fixação marcados conforme projeto." },
+  { titulo: "Fixação e impermeabilização dos suportes", atividades: ["Instalação dos suportes/ganchos de fixação.", "Impermeabilização dos pontos de fixação.", "Conferência de resistência."], resultado: "Suportes fixados e impermeabilizados.", ocorrencias: ["Ponto de infiltração próximo a uma fixação exigiu impermeabilização reforçada."] },
+  { titulo: "Montagem da estrutura de alumínio", atividades: ["Montagem dos perfis de alumínio (trilhos).", "Fixação dos trilhos aos suportes.", "Conferência inicial de alinhamento."], resultado: "Estrutura de alumínio montada sobre os suportes." },
+  { titulo: "Nivelamento e inclinação", atividades: ["Alinhamento e nivelamento dos trilhos.", "Ajuste da inclinação dos módulos.", "Conferência geométrica da estrutura."], resultado: "Trilhos nivelados e inclinação ajustada." },
+  { titulo: "Aterramento", atividades: ["Instalação do sistema de aterramento.", "Equipotencialização da estrutura metálica.", "Teste de continuidade do aterramento."], resultado: "Aterramento executado e testado." },
+  { titulo: "Instalação dos módulos (1ª parte)", atividades: ["Içamento e fixação do primeiro bloco de módulos.", "Conferência de torque dos grampos.", "Organização do cabeamento inicial."], resultado: "Primeiro bloco de módulos fixado." },
+  { titulo: "Instalação dos módulos (2ª parte)", atividades: ["Fixação do segundo bloco de módulos.", "Conferência de torque e alinhamento.", "Fechamento das fileiras."], resultado: "Todos os módulos instalados e fixados." },
+  { titulo: "Cabeamento e conexões", atividades: ["Passagem e organização do cabeamento CC.", "Conexão dos strings.", "Identificação dos circuitos."], resultado: "Cabeamento organizado e strings conectados." },
+  { titulo: "Comissionamento e entrega", atividades: ["Conexão ao inversor e testes.", "Comissionamento do sistema.", "Entrega e orientação ao condomínio."], resultado: "Sistema comissionado e entregue ao Condomínio Maria Lacerda." },
+];
+
+// ---- Galpão industrial metálico (Logística Capixaba) ----
+const GALPAO_CFG: GenCfg = {
+  start: "2026-05-20", responsible: "Sérgio Lopes", arrival: "07:00", departure: "17:00",
+  weather: "Parcialmente nublado",
+  team: [
+    { name: "Sérgio Lopes", role: "Encarregado" },
+    { name: "Fábio Rocha", role: "Montador" },
+    { name: "Edson Maia", role: "Soldador" },
+  ],
+  materials: ["Pilares metálicos", "Vigas e tesouras", "Telha termoacústica", "Parafuso estrutural"],
+  equipment: ["Guindaste 30t", "Plataforma articulada", "Máquina de solda", "Parafusadeira"],
+  risks: ["Montagem e içamento em altura — cinto, linha de vida e sinalização obrigatórios"],
+};
+const GALPAO_DAYS: GenDay[] = [
+  { titulo: "Mobilização e conferência das fundações", atividades: ["Conferência das fundações e chumbadores.", "Mobilização da equipe e do guindaste.", "Organização da área de montagem."], resultado: "Fundações conferidas e canteiro pronto para a montagem." },
+  { titulo: "Içamento dos pilares", atividades: ["Içamento e fixação dos pilares metálicos.", "Conferência de prumo dos pilares.", "Travamento provisório."], resultado: "Pilares metálicos posicionados e travados." },
+  { titulo: "Vigas e contraventamentos", atividades: ["Montagem das vigas principais.", "Instalação dos contraventamentos.", "Aperto inicial das ligações."], resultado: "Vigas e travamentos montados." },
+  { titulo: "Tesouras de cobertura (1º vão)", atividades: ["Içamento e fixação das tesouras do primeiro vão.", "Conferência de alinhamento.", "Travamento entre tesouras."], resultado: "Tesouras do primeiro vão montadas.", ocorrencias: ["Rajadas de vento exigiram pausa temporária no içamento."] },
+  { titulo: "Tesouras de cobertura (2º vão)", atividades: ["Conclusão das tesouras do segundo vão.", "Conferência de prumo e nível.", "Travamento geral da cobertura."], resultado: "Estrutura de cobertura concluída e travada." },
+  { titulo: "Terças e apoios", atividades: ["Instalação das terças.", "Montagem dos apoios para a cobertura.", "Conferência de espaçamentos."], resultado: "Terças instaladas, prontas para receber a telha." },
+  { titulo: "Cobertura termoacústica (1ª água)", atividades: ["Instalação das telhas termoacústicas na primeira água.", "Fixação e vedação.", "Conferência de caimento."], resultado: "Primeira água da cobertura instalada." },
+  { titulo: "Cobertura termoacústica (2ª água)", atividades: ["Conclusão da cobertura na segunda água.", "Instalação de rufos e calhas.", "Vedação dos encontros."], resultado: "Cobertura concluída com rufos e calhas." },
+  { titulo: "Fechamentos laterais", atividades: ["Instalação dos fechamentos laterais em telha trapezoidal.", "Fixação e alinhamento.", "Acabamento das bordas."], resultado: "Fechamentos laterais instalados." },
+  { titulo: "Pintura e acabamentos", atividades: ["Retoques de pintura na estrutura.", "Acabamentos e ajustes finais.", "Conferência de parafusos estruturais."], resultado: "Estrutura com acabamentos concluídos." },
+  { titulo: "Limpeza e entrega", atividades: ["Limpeza geral do galpão.", "Conferência final da estrutura e cobertura.", "Vistoria de entrega com o cliente."], resultado: "Galpão limpo e vistoriado para entrega à Logística Capixaba." },
+];
+
+// ---- Revitalização e pintura de fachada (Edifício Oceania) ----
+const REFORMA_CFG: GenCfg = {
+  start: "2026-05-26", responsible: "Anderson Reis", arrival: "07:30", departure: "16:30",
+  weather: "Ensolarado",
+  team: [
+    { name: "Anderson Reis", role: "Encarregado" },
+    { name: "Marcos Vieira", role: "Pintor" },
+    { name: "Tiago Souza", role: "Ajudante" },
+  ],
+  materials: ["Tinta acrílica", "Fundo preparador", "Lixa e massa", "Selante para trincas"],
+  equipment: ["Balancim elétrico", "Lavadora de alta pressão", "Rolos e pincéis", "Lixadeira"],
+  risks: ["Trabalho em altura na fachada — balancim inspecionado e EPIs obrigatórios"],
+};
+const REFORMA_DAYS: GenDay[] = [
+  { titulo: "Mobilização e isolamento", atividades: ["Montagem e inspeção do balancim elétrico.", "Isolamento e sinalização da área da fachada.", "Organização dos materiais."], resultado: "Balancim montado e área isolada para início dos serviços." },
+  { titulo: "Vistoria e mapeamento da fachada", atividades: ["Mapeamento de trincas, infiltrações e oxidação.", "Registro fotográfico dos pontos críticos.", "Definição da sequência de tratamento."], resultado: "Patologias da fachada mapeadas e planejadas." },
+  { titulo: "Preparação da superfície", atividades: ["Lavagem da fachada com alta pressão.", "Raspagem e lixamento das áreas comprometidas.", "Remoção de partes soltas."], resultado: "Superfície lavada e preparada para tratamento." },
+  { titulo: "Tratamento de trincas", atividades: ["Tratamento e selagem de trincas.", "Aplicação de fundo preparador.", "Correções pontuais com massa."], resultado: "Trincas tratadas e superfície selada." },
+  { titulo: "Tratamento dos elementos metálicos", atividades: ["Lixamento das esquadrias e guarda-corpos.", "Aplicação de fundo anticorrosivo.", "Preparação para pintura metálica."], resultado: "Elementos metálicos tratados contra corrosão.", ocorrencias: ["Chuva no fim da tarde interrompeu parte dos serviços externos."] },
+  { titulo: "Pintura — 1ª demão", atividades: ["Aplicação da primeira demão de tinta acrílica.", "Cobertura uniforme dos panos da fachada.", "Conferência de cobertura."], resultado: "Primeira demão aplicada na fachada." },
+  { titulo: "Pintura — 2ª demão", atividades: ["Aplicação da segunda demão.", "Uniformização do acabamento.", "Retoques nas bordas e detalhes."], resultado: "Segunda demão concluída com acabamento uniforme." },
+  { titulo: "Pintura dos elementos metálicos", atividades: ["Pintura de esquadrias e guarda-corpos.", "Acabamento dos detalhes metálicos.", "Proteção das áreas adjacentes."], resultado: "Elementos metálicos pintados e finalizados." },
+  { titulo: "Manutenção predial", atividades: ["Pequenos reparos hidráulicos e elétricos.", "Revisão de rejuntes e vedações.", "Ajustes solicitados pela administração."], resultado: "Reparos de manutenção predial executados." },
+  { titulo: "Limpeza e entrega", atividades: ["Desmontagem do balancim.", "Limpeza final da fachada e do entorno.", "Vistoria de entrega com o síndico."], resultado: "Fachada revitalizada, limpa e entregue ao Edifício Oceania." },
+];

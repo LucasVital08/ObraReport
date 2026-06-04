@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
@@ -161,8 +162,8 @@ export function EmptyState({ icon, title, description, action }: {
 }
 
 // ---- Stat ----
-export function Stat({ label, value, icon, tone = "brand", hint }: {
-  label: string; value: React.ReactNode; icon?: React.ReactNode; tone?: Tone; hint?: string;
+export function Stat({ label, value, icon, tone = "brand", hint, href }: {
+  label: string; value: React.ReactNode; icon?: React.ReactNode; tone?: Tone; hint?: string; href?: string;
 }) {
   const toneBg: Record<Tone, string> = {
     neutral: "bg-black/5 text-foreground dark:bg-white/10",
@@ -172,8 +173,8 @@ export function Stat({ label, value, icon, tone = "brand", hint }: {
     danger: "bg-danger-soft text-danger",
     info: "bg-info-soft text-info",
   };
-  return (
-    <Card className="p-4">
+  const card = (
+    <Card className={cn("p-4 h-full", href && "hover:border-brand hover:shadow-md transition-all cursor-pointer active:scale-[.98]")}>
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted">{label}</span>
         {icon && <div className={cn("rounded-lg p-1.5", toneBg[tone])}>{icon}</div>}
@@ -182,6 +183,7 @@ export function Stat({ label, value, icon, tone = "brand", hint }: {
       {hint && <div className="text-xs text-muted mt-1">{hint}</div>}
     </Card>
   );
+  return href ? <Link href={href} className="block">{card}</Link> : card;
 }
 
 // ---- Progress ----
