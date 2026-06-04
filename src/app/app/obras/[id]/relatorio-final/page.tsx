@@ -20,7 +20,9 @@ export default function RelatorioFinalPage() {
   const { show, node } = useToast();
   const project = useStore((s) => s.projects.find((p) => p.id === id));
   const company = useStore((s) => s.company);
-  const reports = useStore((s) => s.reports.filter((r) => r.projectId === id));
+  // Seleciona o array inteiro (estável) e filtra no corpo — .filter() dentro
+  // do seletor cria nova referência a cada render e causa loop (React #185).
+  const reports = useStore((s) => s.reports).filter((r) => r.projectId === id);
   const saveFinalReport = useStore((s) => s.saveFinalReport);
 
   const [opts, setOpts] = React.useState({

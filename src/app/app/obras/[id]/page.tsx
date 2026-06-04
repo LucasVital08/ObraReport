@@ -23,21 +23,35 @@ import {
 export default function ObraDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  // IMPORTANTE: no zustand v5 o seletor deve retornar referência estável.
+  // Selecionamos os arrays inteiros (estáveis) e filtramos no corpo — fazer
+  // .filter() dentro do seletor cria um array novo a cada render e causa
+  // loop infinito (React #185 "Maximum update depth exceeded").
   const project = useStore((s) => s.projects.find((p) => p.id === id));
   const updateProject = useStore((s) => s.updateProject);
-  const reports = useStore((s) => s.reports.filter((r) => r.projectId === id));
-  const tasks = useStore((s) => s.tasks.filter((t) => t.projectId === id));
-  const team = useStore((s) => s.team.filter((t) => t.projectId === id));
-  const materials = useStore((s) => s.materials.filter((m) => m.projectId === id));
-  const equipment = useStore((s) => s.equipment.filter((e) => e.projectId === id));
-  const expenses = useStore((s) => s.expenses.filter((e) => e.projectId === id));
-  const checklists = useStore((s) => s.checklists.filter((c) => c.projectId === id));
-  const incidents = useStore((s) => s.incidents.filter((i) => i.projectId === id));
-  const documents = useStore((s) => (s.documents ?? []).filter((d) => d.projectId === id));
+  const allReports = useStore((s) => s.reports);
+  const allTasks = useStore((s) => s.tasks);
+  const allTeam = useStore((s) => s.team);
+  const allMaterials = useStore((s) => s.materials);
+  const allEquipment = useStore((s) => s.equipment);
+  const allExpenses = useStore((s) => s.expenses);
+  const allChecklists = useStore((s) => s.checklists);
+  const allIncidents = useStore((s) => s.incidents);
+  const allDocuments = useStore((s) => s.documents);
   const isClient = useStore((s) => s.user.role === "client");
   const [tab, setTab] = React.useState("visao");
 
   if (!project) return <EmptyState title="Obra não encontrada" action={<Button onClick={() => router.push("/app/obras")}>Voltar</Button>} />;
+
+  const reports = allReports.filter((r) => r.projectId === id);
+  const tasks = allTasks.filter((t) => t.projectId === id);
+  const team = allTeam.filter((t) => t.projectId === id);
+  const materials = allMaterials.filter((m) => m.projectId === id);
+  const equipment = allEquipment.filter((e) => e.projectId === id);
+  const expenses = allExpenses.filter((e) => e.projectId === id);
+  const checklists = allChecklists.filter((c) => c.projectId === id);
+  const incidents = allIncidents.filter((i) => i.projectId === id);
+  const documents = (allDocuments ?? []).filter((d) => d.projectId === id);
 
   const allMedia = reports.flatMap((r) => r.media);
   const totalExpenses = expenses.reduce((a, e) => a + e.amount, 0);
