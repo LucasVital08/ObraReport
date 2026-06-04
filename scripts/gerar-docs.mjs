@@ -462,9 +462,119 @@ function buildPitch() {
   return ctx.doc;
 }
 
+// =====================================================================
+//  DOCUMENTO 3 — PITCH EXECUTIVO (2 LAUDAS)
+// =====================================================================
+function bandHeader(ctx, title) {
+  const { doc } = ctx;
+  const h = 34;
+  doc.setFillColor(...GRAPHITE);
+  doc.rect(0, 0, PW, h, "F");
+  doc.setFillColor(...BRAND);
+  doc.rect(0, 0, PW, 4, "F");
+  // logo
+  doc.setFillColor(...BRAND);
+  doc.roundedRect(M, 9, 16, 16, 3, 3, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text("OR", M + 8, 18.4, { align: "center" });
+  // nome + tagline
+  doc.setFontSize(14);
+  doc.text("ObraReport IA", M + 21, 16);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(200, 205, 210);
+  doc.text("RDO inteligente para a construção brasileira", M + 21, 22);
+  // selo do tipo de documento (direita)
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND);
+  doc.text(title.toUpperCase(), PW - M, 17, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(200, 205, 210);
+  doc.text(`Atualizado em ${HOJE}`, PW - M, 23, { align: "right" });
+  ctx.y = h + 8;
+}
+
+function buildPitchExecutivo() {
+  const ctx = newCtx("ObraReport IA — Pitch Executivo");
+  bandHeader(ctx, "Pitch Executivo");
+
+  // Posicionamento (frase de valor)
+  ctx.doc.setFont("helvetica", "bold");
+  ctx.doc.setFontSize(12);
+  ctx.doc.setTextColor(...NAVY);
+  const pos = ctx.doc.splitTextToSize(
+    "Fale o que aconteceu na obra. A IA transforma em um Relatório Diário de Obra (RDO) profissional — com fotos, assinaturas e relatório final consolidado.",
+    PW - 2 * M,
+  );
+  for (const line of pos) { ctx.doc.text(line, M, ctx.y); ctx.y += 6; }
+  ctx.y += 3;
+
+  subheading(ctx, "O problema");
+  bullets(ctx, [
+    "Registro informal e disperso: anotações em papel, fotos soltas no celular e áudios no WhatsApp.",
+    "RDOs feitos de memória, no fim do mês, com lacunas — sem comprovação técnica e jurídica.",
+    "Contratante sem visibilidade do andamento, gerando atrito, retrabalho e disputas.",
+  ]);
+
+  subheading(ctx, "A solução");
+  paragraph(ctx,
+    "O ObraReport IA registra o dia da obra em segundos, por voz ou texto, e a inteligência artificial estrutura tudo — equipe, horários, atividades, materiais, ocorrências, gastos e pendências — em um RDO padronizado. A IA não inventa: o que não está claro, ela pergunta.");
+
+  subheading(ctx, "Como funciona, em 3 passos");
+  bullets(ctx, [
+    "1. Registre por voz, texto, perguntas guiadas ou manual.",
+    "2. A IA organiza o conteúdo e gera o RDO com fotos e pontuação de qualidade.",
+    "3. Compartilhe (WhatsApp/e-mail/link), colete a assinatura e exporte o PDF profissional.",
+  ]);
+
+  callout(ctx, "O grande diferencial",
+    "Feito para o Brasil, mobile-first e com camadas: a contratada lança os RDOs e o contratante acessa com login próprio para acompanhar, comentar e aprovar cada relatório — com uma linha do tempo da obra gerada por IA.");
+
+  // ---- Página 2 ----
+  addPage(ctx);
+
+  subheading(ctx, "Por que ganhamos (diferenciais)");
+  bullets(ctx, [
+    "Feito para o Brasil: formato, termos e fluxo do RDO nacional.",
+    "IA sem alucinação: extrai, não inventa — e pergunta o que falta.",
+    "Camadas/contratante: transparência que reduz atrito e acelera aprovações.",
+    "Relatório final consolidado: linha do tempo, fotos, gastos e termo de entrega.",
+    "Local-first e LGPD; arquitetura pronta para nuvem (Supabase) e OpenAI.",
+  ]);
+
+  subheading(ctx, "Mercado e público-alvo");
+  paragraph(ctx,
+    "Construtoras, empreiteiros, engenheiros e arquitetos, além de equipes de drywall, elétrica, energia solar, pintura e manutenção predial. Um mercado amplo, capilarizado e ainda pouco digitalizado, com forte dor de comprovação e prestação de contas.");
+
+  subheading(ctx, "Modelo de negócio");
+  simpleTable(ctx, ["Plano", "Mensal", "Inclui"], [
+    ["Free", "Grátis", "1 obra, 2 RDOs/mês, sem IA"],
+    ["Básico", "R$ 79", "1 obra, 30 RDOs/mês, IA incluída, PDF profissional"],
+    ["Profissional", "R$ 199", "5 obras, RDOs ilimitados, equipe/gastos, acesso do contratante"],
+    ["Empresa", "R$ 399", "Obras e usuários ilimitados, marca própria, suporte prioritário"],
+  ], { columnStyles: { 0: { cellWidth: 28, fontStyle: "bold" }, 1: { cellWidth: 22 } } });
+  paragraph(ctx, "SaaS por assinatura recorrente (mensal/anual), com IA já incluída a partir do plano Básico. Planos anuais com desconto.", { size: 9, color: MUTED });
+
+  subheading(ctx, "Tração e roadmap");
+  bullets(ctx, [
+    "Produto funcional ponta a ponta: criação de RDO por voz/texto, fotos, assinatura e PDF.",
+    "Próximos passos: nuvem multiusuário (Supabase), pagamentos (Pix/Stripe/Asaas) e IA ampliada (análise de risco).",
+    "Por que agora: voz + IA acessíveis tornam o registro instantâneo — o timing de adoção é este.",
+  ]);
+
+  callout(ctx, "Próximo passo",
+    "Faça uma demonstração de 3 minutos: fale o relato de um dia de obra e veja o RDO profissional pronto na hora. Teste grátis em obra-report.vercel.app.");
+
+  footer(ctx);
+  return ctx.doc;
+}
+
 // ---- Execução ----
 mkdirSync(OUT_DIR, { recursive: true });
-
 const doc1 = buildDocumentacao();
 const p1 = join(OUT_DIR, "ObraReport-IA-Documentacao.pdf");
 writeFileSync(p1, Buffer.from(doc1.output("arraybuffer")));
@@ -473,6 +583,11 @@ const doc2 = buildPitch();
 const p2 = join(OUT_DIR, "ObraReport-IA-Pitch-Executivo-3min.pdf");
 writeFileSync(p2, Buffer.from(doc2.output("arraybuffer")));
 
+const doc3 = buildPitchExecutivo();
+const p3 = join(OUT_DIR, "ObraReport-IA-Pitch-Executivo-2laudas.pdf");
+writeFileSync(p3, Buffer.from(doc3.output("arraybuffer")));
+
 console.log("PDFs gerados:");
 console.log(" -", p1, `(${doc1.getNumberOfPages()} páginas)`);
 console.log(" -", p2, `(${doc2.getNumberOfPages()} páginas)`);
+console.log(" -", p3, `(${doc3.getNumberOfPages()} páginas)`);
