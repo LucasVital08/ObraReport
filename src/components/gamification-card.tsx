@@ -89,11 +89,11 @@ export function GamificationCard() {
                   <p className="text-[11px] text-muted">{step.xpRequired === 0 ? "Ponto de partida" : `${step.xpRequired} XP acumulados`}</p>
                 </div>
                 {step.current ? (
-                  <span className="text-[10px] font-semibold text-brand-dark bg-white/70 rounded-full px-2 py-0.5">Você está aqui</span>
+                  <span className="shrink-0 text-[10px] font-semibold text-brand-dark bg-white/70 rounded-full px-2 py-0.5">Você está aqui</span>
                 ) : step.reached ? (
-                  <span className="text-[10px] font-semibold text-success">Alcançado</span>
+                  <span className="shrink-0 text-[10px] font-semibold text-success">Alcançado</span>
                 ) : (
-                  <span className="text-[10px] text-muted">faltam {step.xpRequired - g.xp} XP</span>
+                  <span className="shrink-0 text-[10px] text-muted">faltam {step.xpRequired - g.xp} XP</span>
                 )}
               </div>
             ))}
@@ -104,8 +104,8 @@ export function GamificationCard() {
             <p className="text-xs font-semibold mb-2">Como ganhar XP</p>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
               {XP_RULES.map((r) => (
-                <div key={r.label} className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className="text-muted truncate">{r.label}</span>
+                <div key={r.label} className="flex items-center justify-between gap-2 text-[11px] min-w-0">
+                  <span className="text-muted truncate min-w-0">{r.label}</span>
                   <span className="shrink-0 inline-flex items-center font-semibold text-brand-dark"><Plus size={10} />{r.xp}</span>
                 </div>
               ))}

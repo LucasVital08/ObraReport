@@ -69,6 +69,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   -webkit-tap-highlight-color: transparent;
+  /* Evita que qualquer elemento mais largo que a tela expanda o viewport no
+     mobile (sintoma: conteúdo espremido numa coluna estreita). 'clip' não cria
+     contêiner de rolagem, preservando o cabeçalho sticky. */
+  overflow-x: clip;
 }
 
 body {

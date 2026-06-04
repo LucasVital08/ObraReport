@@ -171,7 +171,7 @@ export default function DashboardPage() {
             <Link href="/app/insights"><Button variant="ghost" size="sm">Ver insights <ArrowRight size={14} /></Button></Link>
           </div>
 
-          <div className="h-56">
+          <div className="h-56 w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={days14} margin={{ top: 8, right: 6, left: -20, bottom: 0 }}>
                 <defs>
@@ -309,10 +309,10 @@ export default function DashboardPage() {
 
 function PanelStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="text-center">
+    <div className="text-center min-w-0">
       <span className="text-muted flex items-center justify-center">{icon}</span>
       <p className="text-sm font-bold leading-tight mt-0.5 truncate">{value}</p>
-      <p className="text-[10px] text-muted">{label}</p>
+      <p className="text-[10px] text-muted truncate">{label}</p>
     </div>
   );
 }
