@@ -10,6 +10,8 @@
     "docs": "node scripts/gerar-docs.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.107.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "jspdf": "^4.2.1",
