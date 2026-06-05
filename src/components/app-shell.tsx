@@ -4,6 +4,9 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useStore, useHydrated } from "@/lib/store";
+import { useAuthSync } from "@/lib/supabase/useAuthSync";
+import { isSupabaseEnabled } from "@/lib/supabase/config";
+import { signOutSupabase } from "@/lib/supabase/auth";
 import { Logo, Avatar } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/types";
@@ -94,19 +97,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const setTheme = useStore((s) => s.setTheme);
   const logout = useStore((s) => s.logout);
   const [moreOpen, setMoreOpen] = React.useState(false);
+  // Modo produção: sincroniza a sessão real do Supabase com o store.
+  const { ready: authReady } = useAuthSync();
+  const booting = !hydrated || (isSupabaseEnabled && !authReady);
 
   // Guarda de rota
   React.useEffect(() => {
-    if (!hydrated) return;
+    if (booting) return;
     if (!isAuth) router.replace("/login");
     else if (!onboardingComplete) router.replace("/onboarding");
-  }, [hydrated, isAuth, onboardingComplete, router]);
+  }, [booting, isAuth, onboardingComplete, router]);
 
   React.useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  if (!hydrated) {
+  async function handleLogout() {
+    if (isSupabaseEnabled) await signOutSupabase();
+    logout();
+    router.replace("/login");
+  }
+
+  if (booting) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse text-muted">Carregando…</div>
@@ -266,7 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </div>
                 </div>
               ))}
-              <button onClick={() => { logout(); setMoreOpen(false); }}
+              <button onClick={() => { setMoreOpen(false); handleLogout(); }}
                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-medium text-danger">
                 <LogOut size={16} /> Sair da conta
               </button>

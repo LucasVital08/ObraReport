@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { Logo } from "@/components/brand";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { isSupabaseEnabled } from "@/lib/supabase/config";
+import { SignupForm } from "@/components/auth-forms";
 import { User, Mail, Lock, Building2 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -28,6 +30,7 @@ export default function RegisterPage() {
       <Card className="w-full max-w-sm p-6">
         <h1 className="text-xl font-bold text-center">Criar conta grátis</h1>
         <p className="text-sm text-muted text-center mt-1">Comece a documentar sua obra hoje</p>
+        {isSupabaseEnabled ? <div className="mt-6"><SignupForm /></div> : (
         <form onSubmit={submit} className="mt-6 space-y-4">
           <Field label="Seu nome">
             <div className="relative">
@@ -55,6 +58,7 @@ export default function RegisterPage() {
           </Field>
           <Button type="submit" className="w-full" size="lg">Criar conta e começar</Button>
         </form>
+        )}
         <p className="mt-4 text-xs text-muted text-center">
           Ao criar a conta, você concorda com os{" "}
           <Link href="/termos" className="underline">Termos de uso</Link> e a{" "}

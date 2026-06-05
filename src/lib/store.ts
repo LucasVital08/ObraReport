@@ -7,7 +7,7 @@ import { nowISO, uid } from "@/lib/utils";
 import type {
   Checklist, Company, Contact, DailyReport, Equipment, Expense, Incident,
   Material, Project, Task, TeamMember, TimeCard, FinalReport, PlanId, ProjectDocument,
-  RdoComment,
+  RdoComment, User,
 } from "@/lib/types";
 
 interface State extends AppData {
@@ -23,6 +23,8 @@ interface State extends AppData {
   login: (email: string) => void;
   logout: () => void;
   register: (name: string, email: string, companyName: string) => void;
+  // Sincroniza a sessão real (Supabase) com o store. null = deslogado.
+  setSession: (payload: { user: User; company: Company | null } | null) => void;
   loadDemo: () => void;
   loadDemoClient: () => void;
   resetAll: () => void;
@@ -126,6 +128,17 @@ export const useStore = create<State>()(
           user: { ...s.user, email },
         })),
       logout: () => set({ isAuthenticated: false }),
+      setSession: (payload) =>
+        set((s) =>
+          payload
+            ? {
+                isAuthenticated: true,
+                onboardingComplete: true,
+                demoMode: false,
+                user: payload.user,
+                company: payload.company ?? s.company,
+              }
+            : { isAuthenticated: false }),
       register: (name, email, companyName) =>
         set(() => {
           const data = emptyData();
