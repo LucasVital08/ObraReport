@@ -4,7 +4,8 @@ import React, { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { organizeRdoText } from "@/lib/ai/engine";
+import { aiFromText, aiFromQuestions } from "@/lib/ai/client";
+import { AI_QUESTION_KEYS } from "@/lib/ai/prompts";
 import { emptyDraft, applyAiResult, type RdoDraft } from "@/lib/rdo";
 import { useSpeech } from "@/lib/useSpeech";
 import { RdoEditor } from "@/components/rdo-editor";
@@ -191,6 +192,7 @@ function VoiceMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => v
   const speech = useSpeech();
   const [seconds, setSeconds] = React.useState(0);
   const [manualText, setManualText] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
     if (!speech.listening) return;
@@ -200,10 +202,17 @@ function VoiceMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => v
 
   const text = speech.transcript || manualText;
 
-  function organize() {
+  async function organize() {
     const finalText = (speech.transcript + " " + manualText).trim();
-    const ai = organizeRdoText(finalText);
-    onDone(applyAiResult(draft, ai, finalText));
+    if (!finalText || busy) return;
+    if (speech.listening) speech.stop();
+    setBusy(true);
+    try {
+      const ai = await aiFromText(finalText);
+      onDone(applyAiResult(draft, ai, finalText));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -245,8 +254,10 @@ function VoiceMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => v
       </div>
 
       <div className="flex items-center justify-between mt-4 gap-2 flex-wrap">
-        <Button variant="ghost" onClick={() => { speech.reset(); setManualText(""); setSeconds(0); }}><RotateCcw size={16} /> Limpar</Button>
-        <Button onClick={organize} disabled={!(speech.transcript || manualText).trim()}><Sparkles size={16} /> Organizar com IA <ArrowRight size={16} /></Button>
+        <Button variant="ghost" disabled={busy} onClick={() => { speech.reset(); setManualText(""); setSeconds(0); }}><RotateCcw size={16} /> Limpar</Button>
+        <Button onClick={organize} disabled={busy || !(speech.transcript || manualText).trim()}>
+          <Sparkles size={16} /> {busy ? "Organizando com IA…" : "Organizar com IA"} {!busy && <ArrowRight size={16} />}
+        </Button>
       </div>
     </Card>
   );
@@ -254,7 +265,18 @@ function VoiceMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => v
 
 function TextMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => void; onDone: (d: RdoDraft) => void }) {
   const [text, setText] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
   const sample = "cheguei 9h30 com william italo geidson hopkins. fomos na castelo locações trocar a lixadeira grande por 2 pequenas, só tinha 1 extensão. iniciei lixamento e preparação. busquei tinta na tech tintas. precisa de jato com mangueira de 20m e 2 plugs. gastei 80 de gasolina e 95 no almoço da equipe";
+  async function organize() {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    try {
+      const ai = await aiFromText(text);
+      onDone(applyAiResult(draft, ai, text));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -267,8 +289,8 @@ function TextMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => vo
       </Field>
       <button onClick={() => setText(sample)} className="text-sm text-brand hover:underline mt-2">Usar texto de exemplo</button>
       <div className="flex justify-end mt-4">
-        <Button onClick={() => onDone(applyAiResult(draft, organizeRdoText(text), text))} disabled={!text.trim()}>
-          <Sparkles size={16} /> Organizar relatório <ArrowRight size={16} />
+        <Button onClick={organize} disabled={busy || !text.trim()}>
+          <Sparkles size={16} /> {busy ? "Organizando com IA…" : "Organizar relatório"} {!busy && <ArrowRight size={16} />}
         </Button>
       </div>
     </Card>
@@ -279,6 +301,7 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
   const speech = useSpeech();
   const [idx, setIdx] = React.useState(0);
   const [answers, setAnswers] = React.useState<Record<string, string>>({});
+  const [busy, setBusy] = React.useState(false);
   const current = QUESTIONS[idx];
   const progress = ((idx + 1) / QUESTIONS.length) * 100;
 
@@ -312,7 +335,8 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
     if (idx < QUESTIONS.length - 1) { setIdx(idx + 1); speech.reset(); }
     else finish();
   }
-  function finish() {
+  async function finish() {
+    if (busy) return;
     if (speech.listening) speech.stop();
     const merged = { ...answers };
     const t = speech.transcript.trim();
@@ -324,43 +348,34 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
       return v === "-" || /^(n[ãa]o|nada|nenhum|nenhuma|sem|n\/a)\b/.test(v);
     };
 
-    // 1) Compilado "pergunta + resposta" — vira o relato original do RDO.
+    // Compilado "pergunta + resposta" — vira o relato original do RDO.
     const qa = QUESTIONS
       .map((q) => ({ q: q.q, a: (merged[q.key] || "").trim() }))
       .filter((x) => x.a)
       .map((x) => `• ${x.q}\n${x.a}`)
       .join("\n\n");
 
-    // 2) Texto guiado para a IA: prefixos por categoria orientam a
-    //    classificação (atividades, equipe, ocorrências, solicitações,
-    //    materiais, gastos, riscos e pendências).
-    const guided: string[] = [];
-    const add = (prefix: string, key: string) => {
-      const v = (merged[key] || "").trim();
-      if (v && !isNegative(v)) guided.push(prefix + v);
-    };
-    add("", "atividades");
-    add("Equipe presente na obra: ", "equipe");
-    add("Ocorrência/impedimento: ", "problema");
-    add("Solicitação do cliente: ", "solicitacao");
-    add("Materiais e equipamentos utilizados: ", "materiais");
-    add("Gasto: ", "gastos");
-    add("Risco de segurança: ", "seguranca");
-    add("Pendência para o próximo dia: ", "pendencia");
-    const composed = guided.join(". ");
+    // Cada resposta de conteúdo vai para a IA com um PROMPT ESPECÍFICO da
+    // pergunta (tratamento por campo). Respostas negativas são descartadas.
+    const llmAnswers = QUESTIONS
+      .filter((q) => AI_QUESTION_KEYS.includes(q.key))
+      .map((q) => ({ key: q.key, question: q.q, answer: (merged[q.key] || "").trim() }))
+      .filter((a) => a.answer && !isNegative(a.answer));
 
-    // 3) Trata com a IA e aplica ao RDO, preservando o compilado como relato.
-    const ai = organizeRdoText(composed);
-    let d = applyAiResult(draft, ai, qa || composed);
-
-    // 4) Inclui as informações já precisas (campos diretos das perguntas).
-    if (merged.chegada) d = { ...d, arrival: extractTime(merged.chegada) || d.arrival };
-    if (merged.saida) d = { ...d, departure: extractTime(merged.saida) || d.departure };
-    const noteParts = [merged.obs, merged.status ? `Status do serviço: ${merged.status}` : ""]
-      .map((s) => (s || "").trim()).filter(Boolean);
-    if (noteParts.length) d = { ...d, notes: noteParts.join(" — ") };
-
-    onDone(d);
+    setBusy(true);
+    try {
+      const ai = await aiFromQuestions(llmAnswers);
+      let d = applyAiResult(draft, ai, qa);
+      // Campos diretos (determinísticos), não dependem da IA.
+      if (merged.chegada) d = { ...d, arrival: extractTime(merged.chegada) || d.arrival };
+      if (merged.saida) d = { ...d, departure: extractTime(merged.saida) || d.departure };
+      const noteParts = [merged.obs, merged.status ? `Status do serviço: ${merged.status}` : ""]
+        .map((s) => (s || "").trim()).filter(Boolean);
+      if (noteParts.length) d = { ...d, notes: noteParts.join(" — ") };
+      onDone(d);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -398,13 +413,15 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
       </div>
 
       <div className="flex items-center justify-between mt-6">
-        <Button variant="ghost" onClick={() => { if (idx > 0) { setIdx(idx - 1); speech.reset(); } }} disabled={idx === 0}><ArrowLeft size={16} /> Anterior</Button>
+        <Button variant="ghost" onClick={() => { if (idx > 0) { setIdx(idx - 1); speech.reset(); } }} disabled={idx === 0 || busy}><ArrowLeft size={16} /> Anterior</Button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={next}>Pular</Button>
+          <Button variant="outline" onClick={next} disabled={busy}>Pular</Button>
           {idx < QUESTIONS.length - 1 ? (
-            <Button onClick={next}>Próxima <ArrowRight size={16} /></Button>
+            <Button onClick={next} disabled={busy}>Próxima <ArrowRight size={16} /></Button>
           ) : (
-            <Button onClick={finish}><CheckCircle2 size={16} /> Concluir</Button>
+            <Button onClick={finish} disabled={busy}>
+              {busy ? <><Sparkles size={16} /> Processando com IA…</> : <><CheckCircle2 size={16} /> Concluir</>}
+            </Button>
           )}
         </div>
       </div>

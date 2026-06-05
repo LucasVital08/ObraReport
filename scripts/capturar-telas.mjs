@@ -32,9 +32,7 @@ await page.evaluateOnNewDocument(() => {
     start() {} stop() {} abort() {}
     addEventListener() {} removeEventListener() {}
   }
-  // @ts-ignore
   window.SpeechRecognition = FakeSR;
-  // @ts-ignore
   window.webkitSpeechRecognition = FakeSR;
 });
 

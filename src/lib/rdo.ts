@@ -62,6 +62,20 @@ export function applyAiResult(draft: RdoDraft, ai: AiRdoResult, rawInput: string
     risks: ai.riscos.length ? ai.riscos : draft.risks,
     clientRequests: ai.solicitacoes.length ? ai.solicitacoes : draft.clientRequests,
     pending: ai.pendencias.length ? ai.pendencias : draft.pending,
+    expenses: ai.gastos?.length
+      ? ai.gastos.map((g) => ({
+          id: uid("exp"),
+          companyId: "",
+          projectId: draft.projectId,
+          date: draft.date,
+          category: g.category || "outros",
+          description: g.description || "Gasto",
+          amount: Number(g.amount) || 0,
+          paymentMethod: "",
+          responsible: draft.supervisor,
+          hasReceipt: false,
+        }))
+      : draft.expenses,
     executiveSummary: draft.executiveSummary || ai.resumo_executivo,
   };
 }
