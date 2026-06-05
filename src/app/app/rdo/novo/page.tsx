@@ -4,30 +4,29 @@ import React, { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { aiFromText, aiFromQuestions } from "@/lib/ai/client";
+import { aiFromQuestions } from "@/lib/ai/client";
 import { AI_QUESTION_KEYS } from "@/lib/ai/prompts";
 import { emptyDraft, applyAiResult, type RdoDraft } from "@/lib/rdo";
 import { useSpeech } from "@/lib/useSpeech";
 import { RdoEditor } from "@/components/rdo-editor";
 import { PageHeader } from "@/components/page";
-import { Card, Button, Select, Textarea, Field, useToast, Badge } from "@/components/ui";
+import { Card, Button, Select, Textarea, useToast, Badge } from "@/components/ui";
 import {
-  Mic, MessageSquareText, ListChecks, PenLine, Copy, Square, RotateCcw,
-  Sparkles, ArrowRight, ArrowLeft, Save, CheckCircle2, Plus,
+  Mic, Square, Sparkles, ArrowRight, ArrowLeft, Save, CheckCircle2, Plus, X, Trophy, Wand2,
 } from "lucide-react";
 
-type Stage = "mode" | "voice" | "text" | "questions" | "review";
+type Stage = "intro" | "creating" | "review";
 
 const QUESTIONS = [
-  { key: "atividades", q: "O que foi executado hoje?", hint: "Descreva as principais atividades." },
+  { key: "atividades", q: "O que foi executado hoje?", hint: "Descreva as principais atividades do dia." },
   { key: "equipe", q: "Quem esteve presente?", hint: "Liste os nomes da equipe." },
   { key: "chegada", q: "Qual foi o horário de chegada?", hint: "Ex.: 07:30" },
   { key: "saida", q: "Qual foi o horário de saída?", hint: "Ex.: 17:00" },
   { key: "status", q: "O serviço foi concluído, parcial ou ficou pendente?", hint: "" },
-  { key: "problema", q: "Houve algum problema, atraso ou impedimento?", hint: "" },
+  { key: "problema", q: "Houve algum problema, atraso ou impedimento?", hint: "Se não houve, é só dizer \"não\"." },
   { key: "solicitacao", q: "Houve solicitação do cliente/contratante?", hint: "" },
   { key: "materiais", q: "Foram usados materiais ou equipamentos?", hint: "" },
-  { key: "gastos", q: "Houve compra, gasto ou reembolso?", hint: "" },
+  { key: "gastos", q: "Houve compra, gasto ou reembolso?", hint: "Ex.: 80 de gasolina, 95 no almoço." },
   { key: "seguranca", q: "Houve acidente, risco ou problema de segurança?", hint: "" },
   { key: "pendencia", q: "O que ficou pendente para o próximo dia?", hint: "" },
   { key: "obs", q: "Alguma observação final?", hint: "" },
@@ -37,7 +36,6 @@ function NovoRdoInner() {
   const router = useRouter();
   const params = useSearchParams();
   const projects = useStore((s) => s.projects);
-  const reports = useStore((s) => s.reports);
   const team = useStore((s) => s.team);
   const user = useStore((s) => s.user);
   const addReport = useStore((s) => s.addReport);
@@ -46,39 +44,15 @@ function NovoRdoInner() {
   const activeProjects = projects.filter((p) => !["entregue", "cancelada"].includes(p.status));
   const initialProject = params.get("obra") || activeProjects[0]?.id || projects[0]?.id || "";
   const [projectId, setProjectId] = React.useState(initialProject);
-  const [stage, setStage] = React.useState<Stage>("mode");
+  const [stage, setStage] = React.useState<Stage>("intro");
   const [draft, setDraft] = React.useState<RdoDraft | null>(null);
 
   const project = projects.find((p) => p.id === projectId);
   const teamNames = team.filter((t) => t.projectId === projectId || !t.projectId).map((t) => t.name);
 
-  React.useEffect(() => {
-    const modo = params.get("modo");
-    if (modo && ["voz", "texto", "perguntas", "manual"].includes(modo) && stage === "mode" && projectId) {
-      startMode(modo as "voz" | "texto" | "perguntas" | "manual");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function startMode(mode: "voz" | "texto" | "perguntas" | "manual") {
+  function start() {
     if (!projectId) { show("Selecione uma obra primeiro."); return; }
-    const sup = project?.supervisor || user.name;
-    const d = emptyDraft(projectId, sup, mode === "voz" ? "voz" : mode === "texto" ? "texto" : mode === "perguntas" ? "perguntas" : "manual");
-    setDraft(d);
-    if (mode === "voz") setStage("voice");
-    else if (mode === "texto") setStage("text");
-    else if (mode === "perguntas") setStage("questions");
-    else setStage("review");
-  }
-
-  function duplicateLast() {
-    if (!projectId) { show("Selecione uma obra primeiro."); return; }
-    const last = reports.filter((r) => r.projectId === projectId).sort((a, b) => b.date.localeCompare(a.date))[0];
-    if (!last) { show("Nenhum RDO anterior nesta obra."); return; }
-    const { id, companyId, number, createdAt, updatedAt, ...rest } = last;
-    void id; void companyId; void number; void createdAt; void updatedAt;
-    setDraft({ ...rest, date: new Date().toISOString().slice(0, 10), status: "rascunho", signatures: [] });
-    setStage("review");
+    setStage("creating");
   }
 
   function save() {
@@ -88,253 +62,125 @@ function NovoRdoInner() {
     setTimeout(() => router.push(`/app/rdo/${id}`), 500);
   }
 
-  if (!project && stage === "mode") {
-    // sem obra
+  // ---- Tela cheia imersiva de criação ----
+  if (stage === "creating" && projectId) {
+    return (
+      <ImmersiveCreator
+        projectName={project?.name || "Obra"}
+        supervisor={project?.supervisor || user.name}
+        projectId={projectId}
+        onCancel={() => setStage("intro")}
+        onDone={(d) => { setDraft(d); setStage("review"); }}
+      />
+    );
   }
 
+  // ---- Revisão antes de salvar ----
+  if (stage === "review" && draft) {
+    return (
+      <div>
+        {node}
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setStage("creating")}><ArrowLeft size={16} /> Refazer</Button>
+            <Badge tone="brand"><Sparkles size={12} /> Revisão do RDO</Badge>
+          </div>
+          <Button onClick={save}><Save size={16} /> Salvar RDO</Button>
+        </div>
+        <RdoEditor draft={draft} onChange={(patch) => setDraft({ ...draft, ...patch })} teamSuggestions={teamNames} />
+        <div className="mt-5 flex justify-end">
+          <Button size="lg" onClick={save}><Save size={18} /> Salvar RDO</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Intro (escolha da obra + começar) ----
   return (
     <div>
       {node}
       <PageHeader title="Criar RDO" description="Diário de obra inteligente" backHref="/app" />
 
-      {/* Seletor de obra */}
-      <Card className="p-4 mb-5">
-        {projects.length === 0 ? (
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p className="font-medium">Você ainda não tem nenhuma obra</p>
-              <p className="text-sm text-muted">Crie uma obra para começar a registrar RDOs.</p>
-            </div>
-            <Link href="/app/obras/nova"><Button><Plus size={16} /> Criar obra</Button></Link>
-          </div>
-        ) : (
-          <Field label="Obra / projeto">
-            <div className="flex gap-2 items-stretch">
-              <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="flex-1 min-w-0 truncate">
+      {projects.length === 0 ? (
+        <Card className="p-6 text-center">
+          <p className="font-medium">Você ainda não tem nenhuma obra</p>
+          <p className="text-sm text-muted mt-1">Crie uma obra para começar a registrar RDOs.</p>
+          <Link href="/app/obras/nova" className="inline-block mt-4"><Button><Plus size={16} /> Criar obra</Button></Link>
+        </Card>
+      ) : (
+        <Card className="p-6 bg-gradient-to-br from-brand to-brand-dark text-white border-0">
+          <div className="flex items-center gap-2 mb-2"><Wand2 size={20} /><span className="font-semibold">Assistente de RDO por IA</span></div>
+          <h2 className="text-2xl font-extrabold leading-tight">Responda algumas perguntas.<br />A IA monta o seu RDO.</h2>
+          <p className="text-white/85 text-sm mt-2 max-w-md">
+            Uma experiência guiada em tela cheia: responda por <strong>voz</strong> ou <strong>teclado</strong> e
+            a inteligência artificial organiza tudo — atividades, equipe, ocorrências, gastos e pendências.
+          </p>
+
+          <div className="mt-5 bg-white/10 rounded-2xl p-4">
+            <label className="text-xs text-white/80">Obra / projeto</label>
+            <div className="mt-1 flex gap-2 items-stretch">
+              <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}
+                className="flex-1 min-w-0 truncate bg-white text-graphite border-0">
                 <option value="">Selecione a obra…</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
-              <Link href="/app/obras/nova" className="shrink-0">
-                <Button variant="outline" className="h-full whitespace-nowrap"><Plus size={16} /> Nova obra</Button>
-              </Link>
             </div>
-          </Field>
-        )}
-      </Card>
+          </div>
 
-      {stage === "mode" && projects.length > 0 && <ModeSelector onSelect={startMode} onDuplicate={duplicateLast} />}
-
-      {stage === "voice" && draft && (
-        <VoiceMode draft={draft} onBack={() => setStage("mode")}
-          onDone={(d) => { setDraft(d); setStage("review"); }} />
-      )}
-      {stage === "text" && draft && (
-        <TextMode draft={draft} onBack={() => setStage("mode")}
-          onDone={(d) => { setDraft(d); setStage("review"); }} />
-      )}
-      {stage === "questions" && draft && (
-        <QuestionsMode draft={draft} onBack={() => setStage("mode")}
-          onDone={(d) => { setDraft(d); setStage("review"); }} />
-      )}
-
-      {stage === "review" && draft && (
-        <div>
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setStage("mode")}><ArrowLeft size={16} /> Modo</Button>
-              <Badge tone="brand"><Sparkles size={12} /> Revisão do RDO</Badge>
+          <div className="mt-5 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2 text-white/85 text-sm">
+              <Trophy size={16} /> {QUESTIONS.length} perguntas • ~2 min
             </div>
-            <Button onClick={save}><Save size={16} /> Salvar RDO</Button>
+            <button onClick={start} disabled={!projectId}
+              className="bg-white text-brand-dark font-bold rounded-xl px-6 py-3 inline-flex items-center gap-2 hover:bg-white/90 disabled:opacity-60">
+              Começar agora <ArrowRight size={18} />
+            </button>
           </div>
-          <RdoEditor draft={draft} onChange={(patch) => setDraft({ ...draft, ...patch })} teamSuggestions={teamNames} />
-          <div className="mt-5 flex justify-end">
-            <Button size="lg" onClick={save}><Save size={18} /> Salvar RDO</Button>
-          </div>
-        </div>
+        </Card>
       )}
     </div>
   );
 }
 
-function ModeSelector({ onSelect, onDuplicate }: { onSelect: (m: "voz" | "texto" | "perguntas" | "manual") => void; onDuplicate: () => void }) {
-  const modes: { id: "voz" | "texto" | "perguntas" | "manual"; icon: React.ElementType; title: string; desc: string; featured?: boolean }[] = [
-    { id: "voz", icon: Mic, title: "Criar com IA por voz", desc: "Toque no microfone e fale o que aconteceu. A IA organiza tudo.", featured: true },
-    { id: "texto", icon: MessageSquareText, title: "Criar com IA por texto", desc: "Cole ou digite um texto bruto. A IA transforma em RDO." },
-    { id: "perguntas", icon: ListChecks, title: "Criar por perguntas", desc: "Responda perguntas simples, uma a uma." },
-    { id: "manual", icon: PenLine, title: "Criar manualmente", desc: "Preencha todos os campos no formulário tradicional." },
-  ];
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {modes.map((m) => {
-        const Icon = m.icon;
-        return (
-          <button key={m.id} onClick={() => onSelect(m.id)}
-            className={`text-left rounded-2xl border p-5 transition-all hover:shadow-md hover:border-brand ${m.featured ? "border-brand bg-brand-soft" : "border-border bg-surface"}`}>
-            <div className={`h-12 w-12 rounded-xl flex items-center justify-center mb-3 ${m.featured ? "bg-brand text-white" : "bg-brand-soft text-brand-dark"}`}>
-              <Icon size={24} />
-            </div>
-            <h3 className="font-semibold flex items-center gap-2">{m.title} {m.featured && <Badge tone="brand">Recomendado</Badge>}</h3>
-            <p className="text-sm text-muted mt-1">{m.desc}</p>
-          </button>
-        );
-      })}
-      <button onClick={onDuplicate} className="text-left rounded-2xl border border-dashed border-border p-5 hover:border-brand transition-colors sm:col-span-2">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-black/5 dark:bg-white/5 flex items-center justify-center"><Copy size={20} /></div>
-          <div><h3 className="font-semibold">Duplicar RDO anterior</h3><p className="text-sm text-muted">Reaproveite o último relatório desta obra como base.</p></div>
-        </div>
-      </button>
-    </div>
-  );
-}
-
-function VoiceMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => void; onDone: (d: RdoDraft) => void }) {
-  const speech = useSpeech();
-  const [seconds, setSeconds] = React.useState(0);
-  const [manualText, setManualText] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!speech.listening) return;
-    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(t);
-  }, [speech.listening]);
-
-  const text = speech.transcript || manualText;
-
-  async function organize() {
-    const finalText = (speech.transcript + " " + manualText).trim();
-    if (!finalText || busy) return;
-    if (speech.listening) speech.stop();
-    setBusy(true);
-    try {
-      const ai = await aiFromText(finalText);
-      onDone(applyAiResult(draft, ai, finalText));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft size={16} /> Voltar</Button>
-        <Badge tone="brand"><Mic size={12} /> RDO por voz</Badge>
-      </div>
-
-      <div className="flex flex-col items-center text-center py-4">
-        <button
-          onClick={() => (speech.listening ? speech.stop() : speech.start())}
-          className={`h-24 w-24 rounded-full flex items-center justify-center text-white transition-all ${speech.listening ? "bg-danger animate-pulse-ring" : "bg-brand hover:bg-brand-dark"}`}
-        >
-          {speech.listening ? <Square size={32} /> : <Mic size={40} />}
-        </button>
-        <p className="mt-4 font-medium">
-          {speech.listening ? `Ouvindo… ${formatTime(seconds)}` : "Toque para falar"}
-        </p>
-        <p className="text-sm text-muted mt-1 max-w-sm">
-          {speech.supported
-            ? "Fale naturalmente: equipe, horários, atividades, materiais, ocorrências e pendências."
-            : "Seu navegador não suporta reconhecimento de voz. Digite o texto abaixo."}
-        </p>
-      </div>
-
-      {(text || speech.interim) && (
-        <div className="rounded-xl bg-black/5 dark:bg-white/5 p-4 text-sm">
-          <p className="text-xs text-muted mb-1 uppercase tracking-wide">Transcrição</p>
-          {speech.transcript}<span className="text-muted">{speech.interim}</span>
-        </div>
-      )}
-
-      <div className="mt-4">
-        <Field label={speech.supported ? "Ou complemente por texto" : "Digite o relato"}>
-          <Textarea value={manualText} onChange={(e) => setManualText(e.target.value)}
-            placeholder="Ex.: Hoje a equipe chegou às 9h30. Estavam William, Ítalo e Lucas. Iniciamos o lixamento..." />
-        </Field>
-      </div>
-
-      <div className="flex items-center justify-between mt-4 gap-2 flex-wrap">
-        <Button variant="ghost" disabled={busy} onClick={() => { speech.reset(); setManualText(""); setSeconds(0); }}><RotateCcw size={16} /> Limpar</Button>
-        <Button onClick={organize} disabled={busy || !(speech.transcript || manualText).trim()}>
-          <Sparkles size={16} /> {busy ? "Organizando com IA…" : "Organizar com IA"} {!busy && <ArrowRight size={16} />}
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
-function TextMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => void; onDone: (d: RdoDraft) => void }) {
-  const [text, setText] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const sample = "cheguei 9h30 com william italo geidson hopkins. fomos na castelo locações trocar a lixadeira grande por 2 pequenas, só tinha 1 extensão. iniciei lixamento e preparação. busquei tinta na tech tintas. precisa de jato com mangueira de 20m e 2 plugs. gastei 80 de gasolina e 95 no almoço da equipe";
-  async function organize() {
-    if (!text.trim() || busy) return;
-    setBusy(true);
-    try {
-      const ai = await aiFromText(text);
-      onDone(applyAiResult(draft, ai, text));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft size={16} /> Voltar</Button>
-        <Badge tone="brand"><MessageSquareText size={12} /> RDO por texto</Badge>
-      </div>
-      <Field label="Cole ou digite seu relato (mesmo bagunçado)" hint="A IA corrige a linguagem e organiza em campos. Não inventa fatos.">
-        <Textarea value={text} onChange={(e) => setText(e.target.value)} className="min-h-40"
-          placeholder="Escreva como quiser, com abreviações e tudo. A IA organiza." />
-      </Field>
-      <button onClick={() => setText(sample)} className="text-sm text-brand hover:underline mt-2">Usar texto de exemplo</button>
-      <div className="flex justify-end mt-4">
-        <Button onClick={organize} disabled={busy || !text.trim()}>
-          <Sparkles size={16} /> {busy ? "Organizando com IA…" : "Organizar relatório"} {!busy && <ArrowRight size={16} />}
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
-function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () => void; onDone: (d: RdoDraft) => void }) {
+// =====================================================================
+//  Experiência imersiva (tela cheia) de criação por perguntas + IA
+// =====================================================================
+function ImmersiveCreator({ projectId, projectName, supervisor, onCancel, onDone }: {
+  projectId: string; projectName: string; supervisor: string;
+  onCancel: () => void; onDone: (d: RdoDraft) => void;
+}) {
   const speech = useSpeech();
   const [idx, setIdx] = React.useState(0);
   const [answers, setAnswers] = React.useState<Record<string, string>>({});
   const [busy, setBusy] = React.useState(false);
   const current = QUESTIONS[idx];
-  const progress = ((idx + 1) / QUESTIONS.length) * 100;
+  const total = QUESTIONS.length;
+  const progress = Math.round(((idx + 1) / total) * 100);
+  const answeredCount = QUESTIONS.filter((q) => (answers[q.key] || "").trim()).length;
 
-  // Texto já confirmado para a pergunta atual.
   const committed = answers[current.key] || "";
-  // Enquanto grava, mostra a transcrição ao vivo (parcial + final) na caixa.
   const liveTail = speech.listening ? (speech.transcript + speech.interim).trim() : "";
-  const displayValue = speech.listening
-    ? (committed ? committed + " " : "") + liveTail
-    : committed;
+  const displayValue = speech.listening ? (committed ? committed + " " : "") + liveTail : committed;
 
-  // Confirma o que foi falado na resposta atual (chamado ao parar de gravar / avançar).
   function commitSpeech() {
     const t = speech.transcript.trim();
     if (t) setAnswers((a) => ({ ...a, [current.key]: (a[current.key] ? a[current.key] + " " : "") + t }));
     speech.reset();
   }
-
   function toggleMic() {
-    if (speech.listening) {
-      speech.stop();
-      commitSpeech();
-    } else {
-      speech.reset();
-      speech.start();
-    }
-  }
-
-  function next() {
     if (speech.listening) { speech.stop(); commitSpeech(); }
-    if (idx < QUESTIONS.length - 1) { setIdx(idx + 1); speech.reset(); }
+    else { speech.reset(); speech.start(); }
+  }
+  function goPrev() {
+    if (speech.listening) { speech.stop(); commitSpeech(); }
+    if (idx > 0) { setIdx(idx - 1); speech.reset(); }
+  }
+  function goNext() {
+    if (speech.listening) { speech.stop(); commitSpeech(); }
+    if (idx < total - 1) { setIdx(idx + 1); speech.reset(); }
     else finish();
   }
+
   async function finish() {
     if (busy) return;
     if (speech.listening) speech.stop();
@@ -342,98 +188,104 @@ function QuestionsMode({ draft, onBack, onDone }: { draft: RdoDraft; onBack: () 
     const t = speech.transcript.trim();
     if (t) merged[current.key] = (merged[current.key] ? merged[current.key] + " " : "") + t;
 
-    // Descarta respostas negativas/vazias para não gerar registros falsos.
     const isNegative = (s: string) => {
       const v = s.trim().toLowerCase();
       return v === "-" || /^(n[ãa]o|nada|nenhum|nenhuma|sem|n\/a)\b/.test(v);
     };
-
-    // Compilado "pergunta + resposta" — vira o relato original do RDO.
-    const qa = QUESTIONS
-      .map((q) => ({ q: q.q, a: (merged[q.key] || "").trim() }))
-      .filter((x) => x.a)
-      .map((x) => `• ${x.q}\n${x.a}`)
-      .join("\n\n");
-
-    // Cada resposta de conteúdo vai para a IA com um PROMPT ESPECÍFICO da
-    // pergunta (tratamento por campo). Respostas negativas são descartadas.
+    const qa = QUESTIONS.map((q) => ({ q: q.q, a: (merged[q.key] || "").trim() }))
+      .filter((x) => x.a).map((x) => `• ${x.q}\n${x.a}`).join("\n\n");
     const llmAnswers = QUESTIONS
       .filter((q) => AI_QUESTION_KEYS.includes(q.key))
       .map((q) => ({ key: q.key, question: q.q, answer: (merged[q.key] || "").trim() }))
       .filter((a) => a.answer && !isNegative(a.answer));
 
     setBusy(true);
-    try {
-      const ai = await aiFromQuestions(llmAnswers);
-      let d = applyAiResult(draft, ai, qa);
-      // Campos diretos (determinísticos), não dependem da IA.
-      if (merged.chegada) d = { ...d, arrival: extractTime(merged.chegada) || d.arrival };
-      if (merged.saida) d = { ...d, departure: extractTime(merged.saida) || d.departure };
-      const noteParts = [merged.obs, merged.status ? `Status do serviço: ${merged.status}` : ""]
-        .map((s) => (s || "").trim()).filter(Boolean);
-      if (noteParts.length) d = { ...d, notes: noteParts.join(" — ") };
-      onDone(d);
-    } finally {
-      setBusy(false);
-    }
+    const baseDraft = emptyDraft(projectId, supervisor, "perguntas");
+    const ai = await aiFromQuestions(llmAnswers);
+    let d = applyAiResult(baseDraft, ai, qa);
+    if (merged.chegada) d = { ...d, arrival: extractTime(merged.chegada) || d.arrival };
+    if (merged.saida) d = { ...d, departure: extractTime(merged.saida) || d.departure };
+    const noteParts = [merged.obs, merged.status ? `Status do serviço: ${merged.status}` : ""]
+      .map((s) => (s || "").trim()).filter(Boolean);
+    if (noteParts.length) d = { ...d, notes: noteParts.join(" — ") };
+    onDone(d);
   }
 
+  if (busy) {
+    return (
+      <div className="fixed inset-0 z-[60] bg-gradient-to-br from-brand to-brand-dark text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="h-20 w-20 rounded-3xl bg-white/15 flex items-center justify-center animate-pulse-ring"><Wand2 size={36} /></div>
+        <h2 className="text-2xl font-extrabold mt-6">Montando seu RDO…</h2>
+        <p className="text-white/85 mt-2 max-w-sm">A IA está organizando suas respostas em um relatório profissional.</p>
+      </div>
+    );
+  }
+
+  const isLast = idx === total - 1;
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft size={16} /> Voltar</Button>
-        <Badge tone="brand"><ListChecks size={12} /> Pergunta {idx + 1} de {QUESTIONS.length}</Badge>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-black/10 dark:bg-white/10 mb-6">
-        <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${progress}%` }} />
-      </div>
-
-      <div className="min-h-[120px]">
-        <h2 className="text-xl font-bold">{current.q}</h2>
-        {current.hint && <p className="text-sm text-muted mt-1">{current.hint}</p>}
-        <div className="mt-4 flex gap-2">
-          <Textarea value={displayValue} readOnly={speech.listening}
-            onChange={(e) => setAnswers({ ...answers, [current.key]: e.target.value })}
-            placeholder="Sua resposta (texto ou voz)" className="flex-1" />
-          {speech.supported && (
-            <button onClick={toggleMic}
-              className={`h-11 w-11 shrink-0 rounded-xl flex items-center justify-center text-white ${speech.listening ? "bg-danger animate-pulse-ring" : "bg-brand"}`}>
-              {speech.listening ? <Square size={18} /> : <Mic size={20} />}
-            </button>
-          )}
+    <div className="fixed inset-0 z-[60] bg-background flex flex-col">
+      {/* Cabeçalho + progresso */}
+      <div className="shrink-0 border-b border-border bg-surface/90 backdrop-blur">
+        <div className="flex items-center justify-between gap-3 px-4 h-14 max-w-2xl mx-auto w-full">
+          <button onClick={onCancel} className="p-2 -ml-2 rounded-lg text-muted hover:text-foreground" aria-label="Fechar"><X size={20} /></button>
+          <div className="min-w-0 text-center">
+            <p className="text-xs text-muted truncate">{projectName.split("—")[0].trim()}</p>
+            <p className="text-sm font-semibold">Criar RDO</p>
+          </div>
+          <div className="flex items-center gap-1 text-xs font-semibold text-brand"><Trophy size={14} /> {answeredCount}/{total}</div>
         </div>
-        {speech.listening && (
-          <p className="text-xs text-brand mt-2 flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-danger animate-pulse" /> Ouvindo… fale agora. O texto aparece na caixa.
-          </p>
-        )}
-        {!speech.supported && (
-          <p className="text-xs text-muted mt-2">Reconhecimento de voz indisponível neste navegador — digite a resposta.</p>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between mt-6">
-        <Button variant="ghost" onClick={() => { if (idx > 0) { setIdx(idx - 1); speech.reset(); } }} disabled={idx === 0 || busy}><ArrowLeft size={16} /> Anterior</Button>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={next} disabled={busy}>Pular</Button>
-          {idx < QUESTIONS.length - 1 ? (
-            <Button onClick={next} disabled={busy}>Próxima <ArrowRight size={16} /></Button>
-          ) : (
-            <Button onClick={finish} disabled={busy}>
-              {busy ? <><Sparkles size={16} /> Processando com IA…</> : <><CheckCircle2 size={16} /> Concluir</>}
-            </Button>
-          )}
+        <div className="h-1.5 w-full bg-black/10 dark:bg-white/10">
+          <div className="h-full bg-brand transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
       </div>
-    </Card>
+
+      {/* Pergunta */}
+      <div className="flex-1 overflow-y-auto">
+        <div key={idx} className="max-w-2xl mx-auto w-full px-5 py-8 animate-fade-up">
+          <p className="text-sm font-semibold text-brand">Pergunta {idx + 1} de {total}</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold mt-2 leading-tight">{current.q}</h1>
+          {current.hint && <p className="text-muted mt-2">{current.hint}</p>}
+
+          {/* Microfone grande */}
+          <div className="flex flex-col items-center text-center mt-8">
+            {speech.supported && (
+              <button onClick={toggleMic}
+                className={`h-24 w-24 rounded-full flex items-center justify-center text-white transition-all ${speech.listening ? "bg-danger animate-pulse-ring" : "bg-brand hover:bg-brand-dark"}`}>
+                {speech.listening ? <Square size={32} /> : <Mic size={40} />}
+              </button>
+            )}
+            <p className="mt-3 text-sm text-muted">
+              {speech.listening ? "Ouvindo… fale agora" : speech.supported ? "Toque para falar — ou digite abaixo" : "Digite sua resposta abaixo"}
+            </p>
+          </div>
+
+          {/* Teclado */}
+          <div className="mt-5">
+            <Textarea value={displayValue} readOnly={speech.listening}
+              onChange={(e) => setAnswers({ ...answers, [current.key]: e.target.value })}
+              placeholder="Sua resposta (voz ou teclado)…" className="min-h-28 text-base" />
+          </div>
+        </div>
+      </div>
+
+      {/* Navegação */}
+      <div className="shrink-0 border-t border-border bg-surface">
+        <div className="max-w-2xl mx-auto w-full px-5 py-3 flex items-center justify-between gap-2">
+          <Button variant="ghost" onClick={goPrev} disabled={idx === 0}><ArrowLeft size={16} /> Anterior</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={goNext}>Pular</Button>
+            {isLast ? (
+              <Button onClick={finish}><CheckCircle2 size={16} /> Concluir</Button>
+            ) : (
+              <Button onClick={goNext}>Próxima <ArrowRight size={16} /></Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function formatTime(s: number): string {
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, "0")}`;
-}
 function extractTime(s: string): string | undefined {
   const m = s.match(/(\d{1,2})\s*(?:h|horas|:)\s*(\d{0,2})/i);
   if (!m) return undefined;

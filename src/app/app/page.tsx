@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import {
   Building2, FileText, PenLine, ListChecks, Wallet, AlertTriangle, Images,
-  Mic, MessageSquareText, FileCheck2, Sparkles, ArrowRight, Users, Clock,
+  Mic, FileCheck2, Sparkles, ArrowRight, Users, Clock,
   TrendingUp, CalendarDays, CalendarClock,
 } from "lucide-react";
 
@@ -140,9 +140,9 @@ export default function DashboardPage() {
 
       {/* Ações rápidas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <QuickAction href="/app/rdo/novo?modo=voz" icon={<Mic size={20} />} title="Criar RDO por voz" desc="Fale o que aconteceu" />
-        <QuickAction href="/app/rdo/novo?modo=perguntas" icon={<MessageSquareText size={20} />} title="Criar por perguntas" desc="Responda passo a passo" />
+        <QuickAction href="/app/rdo/novo" icon={<Mic size={20} />} title="Criar RDO" desc="Responda e a IA monta" />
         <QuickAction href="/app/relatorios" icon={<FileCheck2 size={20} />} title="Relatório final" desc="Consolide a obra" />
+        <QuickAction href="/app/insights" icon={<TrendingUp size={20} />} title="Insights" desc="Indicadores das obras" />
       </div>
 
       {/* Indicadores */}
