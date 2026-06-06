@@ -6,6 +6,8 @@ import type { ActivityStatus, MediaItem, RdoActivity, RdoItem } from "@/lib/type
 import { evaluateCompleteness } from "@/lib/ai/engine";
 import { Card, CardHeader, Field, Input, Textarea, Select, Button, Badge, Progress } from "@/components/ui";
 import { uid, colorFromString } from "@/lib/utils";
+import { useStore } from "@/lib/store";
+import { uploadFile } from "@/lib/data/storage";
 import {
   Plus, X, Clock, Users, Hammer, Package, Wrench, AlertTriangle,
   MessageSquare, ListTodo, FileText, Camera, CheckCircle2, Circle, Sparkles,
@@ -231,6 +233,8 @@ function ItemListCard({ title, icon, items, onSet }: {
 
 function MediaCard({ media, onSet, author }: { media: MediaItem[]; onSet: (m: MediaItem[]) => void; author: string }) {
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const companyId = useStore((s) => s.user.companyId);
+  const [uploading, setUploading] = React.useState(false);
   const [phase, setPhase] = React.useState<MediaItem["phase"]>("durante");
 
   function addPlaceholder(kind: MediaItem["kind"]) {
@@ -241,21 +245,28 @@ function MediaCard({ media, onSet, author }: { media: MediaItem[]; onSet: (m: Me
     }]);
   }
 
-  function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  // Sobe cada arquivo para o Storage (modo produção) ou gera data URL (demo).
+  // Acumula em `next` para não perder itens quando vários arquivos são enviados.
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const kind: MediaItem["kind"] = file.type.startsWith("video") ? "video" : "photo";
-        onSet([...media, {
-          id: uid("med"), kind, phase, caption: file.name.replace(/\.[^.]+$/, ""),
-          dataUrl: typeof reader.result === "string" && kind === "photo" ? reader.result : undefined,
-          color: colorFromString(file.name), author, createdAt: new Date().toISOString(), includeInPdf: true,
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
     e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    let next = media;
+    try {
+      for (const file of files) {
+        const kind: MediaItem["kind"] = file.type.startsWith("video") ? "video" : "photo";
+        const url = await uploadFile("rdo-media", file, companyId);
+        next = [...next, {
+          id: uid("med"), kind, phase, caption: file.name.replace(/\.[^.]+$/, ""),
+          dataUrl: kind === "photo" ? url : undefined,
+          color: colorFromString(file.name), author, createdAt: new Date().toISOString(), includeInPdf: true,
+        }];
+        onSet(next);
+      }
+    } finally {
+      setUploading(false);
+    }
   }
 
   const phases: MediaItem["phase"][] = ["antes", "durante", "depois"];
@@ -289,7 +300,7 @@ function MediaCard({ media, onSet, author }: { media: MediaItem[]; onSet: (m: Me
           ))}
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}><Camera size={14} /> Enviar foto/vídeo</Button>
+          <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileRef.current?.click()}><Camera size={14} /> {uploading ? "Enviando…" : "Enviar foto/vídeo"}</Button>
           <Button size="sm" variant="ghost" onClick={() => addPlaceholder("photo")}><Plus size={14} /> Foto exemplo</Button>
           <Button size="sm" variant="ghost" onClick={() => addPlaceholder("video")}><Plus size={14} /> Vídeo exemplo</Button>
           <input ref={fileRef} type="file" accept="image/*,video/*" multiple capture="environment" className="hidden" onChange={onFiles} />

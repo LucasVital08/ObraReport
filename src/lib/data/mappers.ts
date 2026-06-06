@@ -3,7 +3,7 @@
 
 import type {
   Project, DailyReport, Task, TeamMember, TimeCard, Material, Equipment,
-  Checklist, Incident, Expense, Contact, FinalReport, Company,
+  Checklist, Incident, Expense, Contact, FinalReport, Company, ProjectDocument,
 } from "@/lib/types";
 
 type Row = Record<string, unknown>;
@@ -202,6 +202,20 @@ export const finalReportMap = {
   },
 };
 
+// ---------- ProjectDocument (arquivo no Storage; URL pública em storage_path) ----------
+export const documentMap = {
+  toRow(d: ProjectDocument, companyId: string): Row {
+    return { id: d.id, company_id: companyId, project_id: d.projectId ?? null, name: d.name,
+      mime_type: d.mimeType ?? null, size: d.size ?? 0, storage_path: d.dataUrl ?? null,
+      uploaded_at: d.uploadedAt || null };
+  },
+  fromRow(r: Row): ProjectDocument {
+    return { id: s(r.id), companyId: s(r.company_id), projectId: s(r.project_id), name: s(r.name),
+      mimeType: s(r.mime_type), size: Number(r.size) || 0, dataUrl: s(r.storage_path),
+      uploadedAt: s(r.uploaded_at) };
+  },
+};
+
 // ---------- Company ----------
 export const companyMap = {
   toRow(c: Company): Row {
@@ -224,5 +238,6 @@ export const TO_ROW: Record<string, (obj: unknown, companyId: string) => Row> = 
   expenses: (o, c) => expenseMap.toRow(o as Expense, c),
   contacts: (o, c) => contactMap.toRow(o as Contact, c),
   final_reports: (o, c) => finalReportMap.toRow(o as FinalReport, c),
+  documents: (o, c) => documentMap.toRow(o as ProjectDocument, c),
   companies: (o) => companyMap.toRow(o as Company),
 };

@@ -339,10 +339,19 @@ create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
 -- ===================== Storage (fotos e documentos) =====================
-insert into storage.buckets (id, name, public) values ('rdo-media','rdo-media', false) on conflict do nothing;
-insert into storage.buckets (id, name, public) values ('documents','documents', false) on conflict do nothing;
+-- Buckets públicos: a leitura usa getPublicUrl (URL direta usada em <img> e no PDF).
+-- A ESCRITA continua restrita à pasta da empresa pela policy abaixo. Os caminhos
+-- são UUIDs aleatórios, então a URL não é adivinhável.
+insert into storage.buckets (id, name, public) values ('rdo-media','rdo-media', true)
+  on conflict (id) do update set public = true;
+insert into storage.buckets (id, name, public) values ('documents','documents', true)
+  on conflict (id) do update set public = true;
 
--- Caminho dos arquivos começa com o company_id: ex. "<company_id>/<...>"
-create policy media_company_rw on storage.objects for all
-  using (bucket_id in ('rdo-media','documents') and (storage.foldername(name))[1] = public.my_company_id()::text)
+-- Caminho dos arquivos começa com o company_id: ex. "<company_id>/<...>".
+-- Escrita/atualização/remoção restritas à pasta da própria empresa.
+create policy media_company_write on storage.objects for insert
   with check (bucket_id in ('rdo-media','documents') and (storage.foldername(name))[1] = public.my_company_id()::text);
+create policy media_company_update on storage.objects for update
+  using (bucket_id in ('rdo-media','documents') and (storage.foldername(name))[1] = public.my_company_id()::text);
+create policy media_company_delete on storage.objects for delete
+  using (bucket_id in ('rdo-media','documents') and (storage.foldername(name))[1] = public.my_company_id()::text);

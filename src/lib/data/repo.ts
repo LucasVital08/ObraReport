@@ -3,17 +3,18 @@
 import { createClient } from "@/lib/supabase/client";
 import {
   projectMap, reportMap, taskMap, teamMap, timeCardMap, materialMap, equipmentMap,
-  checklistMap, incidentMap, expenseMap, contactMap, finalReportMap,
+  checklistMap, incidentMap, expenseMap, contactMap, finalReportMap, documentMap,
 } from "@/lib/data/mappers";
 import type {
   Project, DailyReport, Task, TeamMember, TimeCard, Material, Equipment,
-  Checklist, Incident, Expense, Contact, FinalReport,
+  Checklist, Incident, Expense, Contact, FinalReport, ProjectDocument,
 } from "@/lib/types";
 
 export interface CompanyData {
   projects: Project[]; reports: DailyReport[]; tasks: Task[]; team: TeamMember[];
   timeCards: TimeCard[]; materials: Material[]; equipment: Equipment[]; checklists: Checklist[];
   incidents: Incident[]; expenses: Expense[]; contacts: Contact[]; finalReports: FinalReport[];
+  documents: ProjectDocument[];
 }
 
 type Row = Record<string, unknown>;
@@ -26,10 +27,11 @@ export async function loadCompanyData(companyId: string): Promise<CompanyData | 
   const sel = (t: string) => sb.from(t).select("*").eq("company_id", companyId);
   const [
     projects, reports, tasks, team, timeCards, materials,
-    equipment, checklists, incidents, expenses, contacts, finalReports,
+    equipment, checklists, incidents, expenses, contacts, finalReports, documents,
   ] = await Promise.all([
     sel("projects"), sel("reports"), sel("tasks"), sel("team_members"), sel("time_cards"), sel("materials"),
     sel("equipment"), sel("checklists"), sel("incidents"), sel("expenses"), sel("contacts"), sel("final_reports"),
+    sel("documents"),
   ]);
 
   return {
@@ -45,5 +47,6 @@ export async function loadCompanyData(companyId: string): Promise<CompanyData | 
     expenses: rows(expenses).map(expenseMap.fromRow),
     contacts: rows(contacts).map(contactMap.fromRow),
     finalReports: rows(finalReports).map(finalReportMap.fromRow),
+    documents: rows(documents).map(documentMap.fromRow),
   };
 }

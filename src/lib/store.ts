@@ -321,20 +321,27 @@ export const useStore = create<State>()(
       },
 
       addDocument: (d) => {
-        // Guarda de tamanho: o armazenamento local tem limite (~5MB). Evita
-        // corromper o estado persistido com arquivos muito grandes.
+        // Guarda de tamanho só vale quando o arquivo é guardado inline (data URL
+        // base64) no estado persistido — o localStorage tem limite (~5MB). Quando
+        // o arquivo foi enviado ao Storage, dataUrl é uma URL http e só a string
+        // é persistida; nesse caso não há limite de tamanho.
+        const inline = !/^https?:\/\//i.test(d.dataUrl || "");
         const MAX = 3 * 1024 * 1024; // 3 MB
-        if (d.size > MAX) {
+        if (inline && d.size > MAX) {
           return { ok: false, error: "Arquivo muito grande (máx. 3 MB nesta versão). Comprima o PDF e tente novamente." };
         }
         try {
-          set((s) => ({ documents: [...(s.documents ?? []), { ...d, id: uid("doc"), companyId: s.user.companyId || CID }] }));
+          set((s) => {
+            const doc = { ...d, id: uid("doc"), companyId: s.user.companyId || CID };
+            up(s, "documents", doc);
+            return { documents: [...(s.documents ?? []), doc] };
+          });
           return { ok: true };
         } catch {
           return { ok: false, error: "Não foi possível salvar o documento (limite de armazenamento atingido)." };
         }
       },
-      deleteDocument: (id) => set((s) => ({ documents: (s.documents ?? []).filter((x) => x.id !== id) })),
+      deleteDocument: (id) => set((s) => { del(s, "documents", id); return { documents: (s.documents ?? []).filter((x) => x.id !== id) }; }),
 
       addRdoComment: (rdoId, c) =>
         set((s) => {

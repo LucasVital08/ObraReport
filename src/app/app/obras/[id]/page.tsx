@@ -14,6 +14,7 @@ import { Avatar } from "@/components/brand";
 import { Timeline } from "@/components/timeline";
 import { ProjectFormFields, projectToForm, formToProject, type ProjectFormState } from "@/components/project-form";
 import { buildFinalReport } from "@/lib/ai/engine";
+import { uploadFile } from "@/lib/data/storage";
 import { formatBRL, formatDateBR, diffDays } from "@/lib/utils";
 import { PROJECT_STATUS_LABELS, type ProjectStatus, type ProjectDocument } from "@/lib/types";
 import {
@@ -265,28 +266,32 @@ export default function ObraDetailPage() {
 function DocumentsTab({ projectId, documents }: { projectId: string; documents: ProjectDocument[] }) {
   const addDocument = useStore((s) => s.addDocument);
   const deleteDocument = useStore((s) => s.deleteDocument);
+  const companyId = useStore((s) => s.user.companyId);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [error, setError] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
-  function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  // Sobe cada documento para o Storage (modo produção) ou gera data URL (demo).
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!files.length) return;
     setError("");
-    files.forEach((file) => {
-      setBusy(true);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setBusy(false);
+    setBusy(true);
+    try {
+      for (const file of files) {
+        const dataUrl = await uploadFile("documents", file, companyId);
         const res = addDocument({
           projectId, name: file.name, mimeType: file.type || "application/octet-stream",
-          size: file.size, dataUrl: String(reader.result), uploadedAt: new Date().toISOString(),
+          size: file.size, dataUrl, uploadedAt: new Date().toISOString(),
         });
-        if (!res.ok) setError(res.error || "Erro ao importar.");
-      };
-      reader.onerror = () => { setBusy(false); setError("Falha ao ler o arquivo."); };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = "";
+        if (!res.ok) { setError(res.error || "Erro ao importar."); break; }
+      }
+    } catch {
+      setError("Falha ao enviar o arquivo.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
