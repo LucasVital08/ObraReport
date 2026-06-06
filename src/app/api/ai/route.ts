@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { organizeRdoText } from "@/lib/ai/engine";
-import { FREE_TEXT_SYSTEM, BASE_SYSTEM, QUESTION_PROMPTS } from "@/lib/ai/prompts";
+import { FREE_TEXT_SYSTEM, QUESTIONS_SYSTEM, QUESTION_PROMPTS } from "@/lib/ai/prompts";
 import type { AiRdoResult } from "@/lib/types";
 
 // Rota de IA do RDO.
@@ -20,51 +20,6 @@ function emptyResult(): AiRdoResult {
     pendencias: [], solicitacoes: [], riscos: [], clima: "",
     campos_faltantes: [], perguntas_complementares: [],
   };
-}
-
-function dedupeStr(arr: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const s of arr) {
-    const v = (s || "").trim();
-    if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); }
-  }
-  return out;
-}
-
-// Mescla resultados parciais (um por pergunta) em um único AiRdoResult.
-function mergeResults(parts: Partial<AiRdoResult>[]): AiRdoResult {
-  const r = emptyResult();
-  const resumo: string[] = [];
-  for (const p of parts) {
-    if (!p) continue;
-    if (p.resumo_executivo) resumo.push(p.resumo_executivo);
-    if (Array.isArray(p.equipe_presente)) r.equipe_presente.push(...p.equipe_presente.filter((t) => t?.name));
-    if (p.horarios?.chegada) r.horarios.chegada = p.horarios.chegada;
-    if (p.horarios?.saida) r.horarios.saida = p.horarios.saida;
-    if (Array.isArray(p.atividades_executadas)) r.atividades_executadas.push(...p.atividades_executadas);
-    if (Array.isArray(p.materiais_utilizados)) r.materiais_utilizados.push(...p.materiais_utilizados);
-    if (Array.isArray(p.equipamentos_utilizados)) r.equipamentos_utilizados.push(...p.equipamentos_utilizados);
-    if (Array.isArray(p.ocorrencias)) r.ocorrencias.push(...p.ocorrencias);
-    if (Array.isArray(p.gastos)) r.gastos.push(...p.gastos.filter((g) => g?.description));
-    if (Array.isArray(p.pendencias)) r.pendencias.push(...p.pendencias);
-    if (Array.isArray(p.solicitacoes)) r.solicitacoes.push(...p.solicitacoes);
-    if (Array.isArray(p.riscos)) r.riscos.push(...p.riscos);
-    if (p.clima) r.clima = p.clima;
-    if (Array.isArray(p.campos_faltantes)) r.campos_faltantes.push(...p.campos_faltantes);
-    if (Array.isArray(p.perguntas_complementares)) r.perguntas_complementares.push(...p.perguntas_complementares);
-  }
-  r.resumo_executivo = resumo.join(" ");
-  r.atividades_executadas = dedupeStr(r.atividades_executadas);
-  r.materiais_utilizados = dedupeStr(r.materiais_utilizados);
-  r.equipamentos_utilizados = dedupeStr(r.equipamentos_utilizados);
-  r.ocorrencias = dedupeStr(r.ocorrencias);
-  r.pendencias = dedupeStr(r.pendencias);
-  r.solicitacoes = dedupeStr(r.solicitacoes);
-  r.riscos = dedupeStr(r.riscos);
-  r.campos_faltantes = dedupeStr(r.campos_faltantes);
-  r.perguntas_complementares = dedupeStr(r.perguntas_complementares);
-  return r;
 }
 
 async function callOpenAI(apiKey: string, system: string, user: string): Promise<Partial<AiRdoResult>> {
@@ -95,23 +50,23 @@ export async function POST(req: Request) {
 
   const apiKey = process.env.OPENAI_API_KEY;
 
-  // ---- Modo PERGUNTAS: prompt específico por resposta ----
+  // ---- Modo PERGUNTAS: compila TODAS as perguntas+respostas e passa por um
+  // único prompt predefinido que preenche o modelo de RDO. ----
   if (Array.isArray(body.questions)) {
     const answers = body.questions.filter((a) => a?.answer?.trim() && QUESTION_PROMPTS[a.key]);
     if (answers.length === 0) return NextResponse.json({ mode: "vazio", result: emptyResult() });
 
-    if (!apiKey) {
-      const compiled = answers.map((a) => `${a.question}\n${a.answer}`).join(". ");
-      return NextResponse.json({ mode: "simulado", result: organizeRdoText(compiled) });
-    }
+    const compiled = answers.map((a, i) => `${i + 1}. Pergunta: ${a.question}\n   Resposta: ${a.answer}`).join("\n\n");
 
-    const parts = await Promise.all(answers.map(async (a) => {
-      const qp = QUESTION_PROMPTS[a.key];
-      const user = `Pergunta feita ao operador: "${a.question}"\nResposta do operador: "${a.answer}"\n\nInstrução: ${qp.instrucao}\nPreencha SOMENTE: ${qp.campos.join(", ")}. Deixe todos os demais campos vazios.`;
-      try { return await callOpenAI(apiKey, BASE_SYSTEM, user); }
-      catch { return organizeRdoText(a.answer) as Partial<AiRdoResult>; } // fallback por pergunta
-    }));
-    return NextResponse.json({ mode: "openai", result: mergeResults(parts) });
+    if (!apiKey) {
+      return NextResponse.json({ mode: "simulado", result: organizeRdoText(answers.map((a) => a.answer).join(". ")) });
+    }
+    try {
+      const result = await callOpenAI(apiKey, QUESTIONS_SYSTEM, `Perguntas e respostas do RDO:\n\n${compiled}`);
+      return NextResponse.json({ mode: "openai", result });
+    } catch {
+      return NextResponse.json({ mode: "simulado_fallback", result: organizeRdoText(answers.map((a) => a.answer).join(". ")) });
+    }
   }
 
   // ---- Modo TEXTO LIVRE (voz/texto) ----

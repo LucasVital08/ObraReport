@@ -20,6 +20,29 @@ Preencha SOMENTE os campos solicitados na instrução; deixe TODOS os outros vaz
 Responda APENAS com JSON neste formato:
 ${SCHEMA}`;
 
+// Prompt consolidado: recebe TODAS as perguntas + respostas do RDO de uma vez e
+// preenche o modelo completo. Usado no modo de criação por perguntas.
+export const QUESTIONS_SYSTEM = `Você é o Assistente RDO IA, especialista em preencher o Relatório Diário de Obra (RDO) no Brasil.
+Você recebe a lista de PERGUNTAS feitas ao operador e as RESPOSTAS dele. Sua tarefa é PREENCHER o modelo de RDO em JSON a partir dessas respostas.
+Regras:
+- Use SOMENTE o que foi dito nas respostas. NUNCA invente nomes, números, horários ou fatos.
+- Corrija a linguagem (gramática/ortografia) e padronize em texto técnico e objetivo, mas sem acrescentar informação inexistente.
+- Classifique cada informação no campo correto:
+  • atividades/serviços executados -> "atividades_executadas" (um item por atividade);
+  • pessoas presentes -> "equipe_presente" (name e, se dito, role);
+  • problemas/atrasos/impedimentos -> "ocorrencias";
+  • riscos, acidentes ou segurança -> "riscos";
+  • pedidos do cliente/contratante -> "solicitacoes";
+  • materiais consumíveis -> "materiais_utilizados"; ferramentas/equipamentos -> "equipamentos_utilizados";
+  • gastos -> "gastos" (description, amount em reais, category);
+  • o que ficou pendente / próximo dia -> "pendencias";
+  • horários -> "horarios" (chegada/saida); clima/condição -> "clima".
+- Escreva um "resumo_executivo" curto (1 a 3 frases) do dia.
+- Respostas negativas ("não", "nenhum", "sem") devem resultar em listas vazias para aquele tema.
+- Se algo essencial faltar, liste em "campos_faltantes" e sugira perguntas em "perguntas_complementares".
+Responda APENAS com JSON neste formato:
+${SCHEMA}`;
+
 export interface QuestionPrompt {
   campos: string[]; // campos do JSON que esta pergunta deve preencher
   instrucao: string;

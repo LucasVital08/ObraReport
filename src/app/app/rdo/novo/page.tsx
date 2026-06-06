@@ -259,11 +259,12 @@ function ImmersiveCreator({ projectId, projectName, supervisor, onCancel, onDone
             </p>
           </div>
 
-          {/* Teclado */}
-          <div className="mt-5">
+          {/* Resposta por teclado (largura cheia) */}
+          <div className="mt-6">
             <Textarea value={displayValue} readOnly={speech.listening}
               onChange={(e) => setAnswers({ ...answers, [current.key]: e.target.value })}
-              placeholder="Sua resposta (voz ou teclado)…" className="min-h-28 text-base" />
+              placeholder="Digite a resposta aqui — ou toque no microfone acima…"
+              className="w-full min-h-40 text-base leading-relaxed" />
           </div>
         </div>
       </div>
