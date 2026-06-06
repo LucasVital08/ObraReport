@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useStore, useHydrated } from "@/lib/store";
 import { useAuthSync } from "@/lib/supabase/useAuthSync";
+import { useDataSync } from "@/lib/data/useDataSync";
 import { isSupabaseEnabled } from "@/lib/supabase/config";
 import { signOutSupabase } from "@/lib/supabase/auth";
 import { Logo, Avatar } from "@/components/brand";
@@ -99,6 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [moreOpen, setMoreOpen] = React.useState(false);
   // Modo produção: sincroniza a sessão real do Supabase com o store.
   const { ready: authReady } = useAuthSync();
+  useDataSync(); // carrega os dados da empresa do Supabase (modo produção)
   const booting = !hydrated || (isSupabaseEnabled && !authReady);
 
   // Guarda de rota

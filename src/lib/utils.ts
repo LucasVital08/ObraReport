@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]): string {
 
 let counter = 0;
 export function uid(prefix = "id"): string {
+  // Em produção (Supabase) os IDs precisam ser UUID (colunas uuid do banco).
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  } catch { /* fallback abaixo */ }
   counter += 1;
   return `${prefix}_${Date.now().toString(36)}_${counter.toString(36)}_${Math.random()
     .toString(36)

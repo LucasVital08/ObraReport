@@ -4,6 +4,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createSeedData, type AppData } from "@/lib/seed";
 import { nowISO, uid } from "@/lib/utils";
+import { isSupabaseEnabled } from "@/lib/supabase/config";
+import { syncUpsert, syncDelete } from "@/lib/data/sync";
+import type { CompanyData } from "@/lib/data/repo";
 import type {
   Checklist, Company, Contact, DailyReport, Equipment, Expense, Incident,
   Material, Project, Task, TeamMember, TimeCard, FinalReport, PlanId, ProjectDocument,
@@ -25,6 +28,8 @@ interface State extends AppData {
   register: (name: string, email: string, companyName: string) => void;
   // Sincroniza a sessão real (Supabase) com o store. null = deslogado.
   setSession: (payload: { user: User; company: Company | null } | null) => void;
+  // Carrega os dados da empresa (vindos do Supabase) para o store.
+  hydrateData: (data: Partial<CompanyData>) => void;
   loadDemo: () => void;
   loadDemoClient: () => void;
   resetAll: () => void;
@@ -110,6 +115,17 @@ function emptyData(): AppData {
   };
 }
 
+// ---- Sincronização com o Supabase (somente em produção, fora do modo demo) ----
+function canSync(s: State): boolean {
+  return isSupabaseEnabled && !s.demoMode && !!s.user?.companyId;
+}
+function up(s: State, table: string, obj: unknown) {
+  if (canSync(s)) syncUpsert(table, obj, s.user.companyId);
+}
+function del(s: State, table: string, id: string) {
+  if (canSync(s)) syncDelete(table, id);
+}
+
 export const useStore = create<State>()(
   persist(
     (set) => ({
@@ -139,13 +155,14 @@ export const useStore = create<State>()(
                 company: payload.company ?? s.company,
               }
             : { isAuthenticated: false }),
+      hydrateData: (data) => set(() => ({ ...(data as Partial<State>) })),
       register: (name, email, companyName) =>
         set(() => {
           const data = emptyData();
           return {
             ...data,
             finalReports: [],
-      documents: [],
+            documents: [],
             user: { ...data.user, name, email },
             company: { ...data.company, name: companyName },
             isAuthenticated: true,
@@ -159,7 +176,7 @@ export const useStore = create<State>()(
           return {
             ...data,
             finalReports: [],
-      documents: [],
+            documents: [],
             isAuthenticated: true,
             onboardingComplete: true,
             demoMode: true,
@@ -190,100 +207,116 @@ export const useStore = create<State>()(
         set(() => ({
           ...emptyData(),
           finalReports: [],
-      documents: [],
+          documents: [],
           isAuthenticated: false,
           onboardingComplete: false,
           demoMode: false,
         })),
       completeOnboarding: () => set({ onboardingComplete: true }),
       setTheme: (theme) => set({ theme }),
-      updateCompany: (patch) => set((s) => ({ company: { ...s.company, ...patch } })),
-      setPlan: (plan) => set((s) => ({ company: { ...s.company, plan } })),
+      updateCompany: (patch) =>
+        set((s) => {
+          const company = { ...s.company, ...patch };
+          up(s, "companies", company);
+          return { company };
+        }),
+      setPlan: (plan) =>
+        set((s) => {
+          const company = { ...s.company, plan };
+          up(s, "companies", company);
+          return { company };
+        }),
 
       // ---- projects ----
       addProject: (p) => {
         const id = uid("prj");
-        set((s) => ({
-          projects: [...s.projects, { ...p, id, companyId: CID, createdAt: nowISO() }],
-        }));
+        set((s) => {
+          const o: Project = { ...p, id, companyId: s.user.companyId || CID, createdAt: nowISO() };
+          up(s, "projects", o);
+          return { projects: [...s.projects, o] };
+        });
         return id;
       },
       updateProject: (id, patch) =>
-        set((s) => ({ projects: s.projects.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
+        set((s) => {
+          const projects = s.projects.map((x) => (x.id === id ? { ...x, ...patch } : x));
+          const o = projects.find((x) => x.id === id);
+          if (o) up(s, "projects", o);
+          return { projects };
+        }),
       deleteProject: (id) =>
-        set((s) => ({
-          projects: s.projects.filter((x) => x.id !== id),
-          reports: s.reports.filter((x) => x.projectId !== id),
-          documents: (s.documents ?? []).filter((x) => x.projectId !== id),
-        })),
+        set((s) => {
+          del(s, "projects", id); // o banco remove em cascata os filhos
+          return {
+            projects: s.projects.filter((x) => x.id !== id),
+            reports: s.reports.filter((x) => x.projectId !== id),
+            documents: (s.documents ?? []).filter((x) => x.projectId !== id),
+          };
+        }),
 
       // ---- reports ----
       addReport: (r) => {
         const id = uid("rdo");
         set((s) => {
-          const number =
-            s.reports.filter((x) => x.projectId === r.projectId).length + 1;
-          return {
-            reports: [
-              ...s.reports,
-              { ...r, id, companyId: CID, number, createdAt: nowISO(), updatedAt: nowISO() },
-            ],
-          };
+          const number = s.reports.filter((x) => x.projectId === r.projectId).length + 1;
+          const o: DailyReport = { ...r, id, companyId: s.user.companyId || CID, number, createdAt: nowISO(), updatedAt: nowISO() };
+          up(s, "reports", o);
+          return { reports: [...s.reports, o] };
         });
         return id;
       },
       updateReport: (id, patch) =>
-        set((s) => ({
-          reports: s.reports.map((x) =>
-            x.id === id ? { ...x, ...patch, updatedAt: nowISO() } : x,
-          ),
-        })),
-      deleteReport: (id) => set((s) => ({ reports: s.reports.filter((x) => x.id !== id) })),
+        set((s) => {
+          const reports = s.reports.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: nowISO() } : x));
+          const o = reports.find((x) => x.id === id);
+          if (o) up(s, "reports", o);
+          return { reports };
+        }),
+      deleteReport: (id) => set((s) => { del(s, "reports", id); return { reports: s.reports.filter((x) => x.id !== id) }; }),
 
       // ---- tasks ----
-      addTask: (t) => set((s) => ({ tasks: [...s.tasks, { ...t, id: uid("tsk"), companyId: CID, createdAt: nowISO() }] })),
-      updateTask: (id, patch) => set((s) => ({ tasks: s.tasks.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteTask: (id) => set((s) => ({ tasks: s.tasks.filter((x) => x.id !== id) })),
+      addTask: (t) => set((s) => { const o: Task = { ...t, id: uid("tsk"), companyId: s.user.companyId || CID, createdAt: nowISO() }; up(s, "tasks", o); return { tasks: [...s.tasks, o] }; }),
+      updateTask: (id, patch) => set((s) => { const tasks = s.tasks.map((x) => (x.id === id ? { ...x, ...patch } : x)); const o = tasks.find((x) => x.id === id); if (o) up(s, "tasks", o); return { tasks }; }),
+      deleteTask: (id) => set((s) => { del(s, "tasks", id); return { tasks: s.tasks.filter((x) => x.id !== id) }; }),
 
-      addTeamMember: (t) => set((s) => ({ team: [...s.team, { ...t, id: uid("tm"), companyId: CID }] })),
-      updateTeamMember: (id, patch) => set((s) => ({ team: s.team.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteTeamMember: (id) => set((s) => ({ team: s.team.filter((x) => x.id !== id) })),
+      addTeamMember: (t) => set((s) => { const o: TeamMember = { ...t, id: uid("tm"), companyId: s.user.companyId || CID }; up(s, "team_members", o); return { team: [...s.team, o] }; }),
+      updateTeamMember: (id, patch) => set((s) => { const team = s.team.map((x) => (x.id === id ? { ...x, ...patch } : x)); const o = team.find((x) => x.id === id); if (o) up(s, "team_members", o); return { team }; }),
+      deleteTeamMember: (id) => set((s) => { del(s, "team_members", id); return { team: s.team.filter((x) => x.id !== id) }; }),
 
-      addTimeCard: (t) => set((s) => ({ timeCards: [...s.timeCards, { ...t, id: uid("tc"), companyId: CID }] })),
-      deleteTimeCard: (id) => set((s) => ({ timeCards: s.timeCards.filter((x) => x.id !== id) })),
+      addTimeCard: (t) => set((s) => { const o: TimeCard = { ...t, id: uid("tc"), companyId: s.user.companyId || CID }; up(s, "time_cards", o); return { timeCards: [...s.timeCards, o] }; }),
+      deleteTimeCard: (id) => set((s) => { del(s, "time_cards", id); return { timeCards: s.timeCards.filter((x) => x.id !== id) }; }),
 
-      addMaterial: (m) => set((s) => ({ materials: [...s.materials, { ...m, id: uid("mt"), companyId: CID }] })),
-      updateMaterial: (id, patch) => set((s) => ({ materials: s.materials.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteMaterial: (id) => set((s) => ({ materials: s.materials.filter((x) => x.id !== id) })),
+      addMaterial: (m) => set((s) => { const o: Material = { ...m, id: uid("mt"), companyId: s.user.companyId || CID }; up(s, "materials", o); return { materials: [...s.materials, o] }; }),
+      updateMaterial: (id, patch) => set((s) => { const materials = s.materials.map((x) => (x.id === id ? { ...x, ...patch } : x)); const o = materials.find((x) => x.id === id); if (o) up(s, "materials", o); return { materials }; }),
+      deleteMaterial: (id) => set((s) => { del(s, "materials", id); return { materials: s.materials.filter((x) => x.id !== id) }; }),
 
-      addEquipment: (e) => set((s) => ({ equipment: [...s.equipment, { ...e, id: uid("eq"), companyId: CID }] })),
-      updateEquipment: (id, patch) => set((s) => ({ equipment: s.equipment.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteEquipment: (id) => set((s) => ({ equipment: s.equipment.filter((x) => x.id !== id) })),
+      addEquipment: (e) => set((s) => { const o: Equipment = { ...e, id: uid("eq"), companyId: s.user.companyId || CID }; up(s, "equipment", o); return { equipment: [...s.equipment, o] }; }),
+      updateEquipment: (id, patch) => set((s) => { const equipment = s.equipment.map((x) => (x.id === id ? { ...x, ...patch } : x)); const o = equipment.find((x) => x.id === id); if (o) up(s, "equipment", o); return { equipment }; }),
+      deleteEquipment: (id) => set((s) => { del(s, "equipment", id); return { equipment: s.equipment.filter((x) => x.id !== id) }; }),
 
-      addChecklist: (c) => set((s) => ({ checklists: [...s.checklists, { ...c, id: uid("ck"), companyId: CID }] })),
-      updateChecklist: (id, patch) => set((s) => ({ checklists: s.checklists.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteChecklist: (id) => set((s) => ({ checklists: s.checklists.filter((x) => x.id !== id) })),
+      addChecklist: (c) => set((s) => { const o: Checklist = { ...c, id: uid("ck"), companyId: s.user.companyId || CID }; up(s, "checklists", o); return { checklists: [...s.checklists, o] }; }),
+      updateChecklist: (id, patch) => set((s) => { const checklists = s.checklists.map((x) => (x.id === id ? { ...x, ...patch } : x)); const o = checklists.find((x) => x.id === id); if (o) up(s, "checklists", o); return { checklists }; }),
+      deleteChecklist: (id) => set((s) => { del(s, "checklists", id); return { checklists: s.checklists.filter((x) => x.id !== id) }; }),
 
-      addIncident: (i) => set((s) => ({ incidents: [...s.incidents, { ...i, id: uid("inc"), companyId: CID, createdAt: nowISO() }] })),
-      updateIncident: (id, patch) => set((s) => ({ incidents: s.incidents.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteIncident: (id) => set((s) => ({ incidents: s.incidents.filter((x) => x.id !== id) })),
+      addIncident: (i) => set((s) => { const o: Incident = { ...i, id: uid("inc"), companyId: s.user.companyId || CID, createdAt: nowISO() }; up(s, "incidents", o); return { incidents: [...s.incidents, o] }; }),
+      updateIncident: (id, patch) => set((s) => { const incidents = s.incidents.map((x) => (x.id === id ? { ...x, ...patch } : x)); const o = incidents.find((x) => x.id === id); if (o) up(s, "incidents", o); return { incidents }; }),
+      deleteIncident: (id) => set((s) => { del(s, "incidents", id); return { incidents: s.incidents.filter((x) => x.id !== id) }; }),
 
-      addExpense: (e) => set((s) => ({ expenses: [...s.expenses, { ...e, id: uid("exp"), companyId: CID }] })),
-      updateExpense: (id, patch) => set((s) => ({ expenses: s.expenses.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteExpense: (id) => set((s) => ({ expenses: s.expenses.filter((x) => x.id !== id) })),
+      addExpense: (e) => set((s) => { const o: Expense = { ...e, id: uid("exp"), companyId: s.user.companyId || CID }; up(s, "expenses", o); return { expenses: [...s.expenses, o] }; }),
+      updateExpense: (id, patch) => set((s) => { const expenses = s.expenses.map((x) => (x.id === id ? { ...x, ...patch } : x)); const o = expenses.find((x) => x.id === id); if (o) up(s, "expenses", o); return { expenses }; }),
+      deleteExpense: (id) => set((s) => { del(s, "expenses", id); return { expenses: s.expenses.filter((x) => x.id !== id) }; }),
 
-      addContact: (c) => set((s) => ({ contacts: [...s.contacts, { ...c, id: uid("ct"), companyId: CID }] })),
-      updateContact: (id, patch) => set((s) => ({ contacts: s.contacts.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteContact: (id) => set((s) => ({ contacts: s.contacts.filter((x) => x.id !== id) })),
+      addContact: (c) => set((s) => { const o: Contact = { ...c, id: uid("ct"), companyId: s.user.companyId || CID }; up(s, "contacts", o); return { contacts: [...s.contacts, o] }; }),
+      updateContact: (id, patch) => set((s) => { const contacts = s.contacts.map((x) => (x.id === id ? { ...x, ...patch } : x)); const o = contacts.find((x) => x.id === id); if (o) up(s, "contacts", o); return { contacts }; }),
+      deleteContact: (id) => set((s) => { del(s, "contacts", id); return { contacts: s.contacts.filter((x) => x.id !== id) }; }),
 
       saveFinalReport: (f) => {
         const id = uid("fr");
-        set((s) => ({
-          finalReports: [
-            ...(s.finalReports ?? []).filter((x) => x.projectId !== f.projectId),
-            { ...f, id, companyId: CID },
-          ],
-        }));
+        set((s) => {
+          const o: FinalReport = { ...f, id, companyId: s.user.companyId || CID };
+          up(s, "final_reports", o);
+          return { finalReports: [...(s.finalReports ?? []).filter((x) => x.projectId !== f.projectId), o] };
+        });
         return id;
       },
 
@@ -295,7 +328,7 @@ export const useStore = create<State>()(
           return { ok: false, error: "Arquivo muito grande (máx. 3 MB nesta versão). Comprima o PDF e tente novamente." };
         }
         try {
-          set((s) => ({ documents: [...(s.documents ?? []), { ...d, id: uid("doc"), companyId: CID }] }));
+          set((s) => ({ documents: [...(s.documents ?? []), { ...d, id: uid("doc"), companyId: s.user.companyId || CID }] }));
           return { ok: true };
         } catch {
           return { ok: false, error: "Não foi possível salvar o documento (limite de armazenamento atingido)." };
@@ -304,21 +337,27 @@ export const useStore = create<State>()(
       deleteDocument: (id) => set((s) => ({ documents: (s.documents ?? []).filter((x) => x.id !== id) })),
 
       addRdoComment: (rdoId, c) =>
-        set((s) => ({
-          reports: s.reports.map((r) =>
+        set((s) => {
+          const reports = s.reports.map((r) =>
             r.id === rdoId
               ? { ...r, comments: [...(r.comments ?? []), { ...c, id: uid("cmt"), createdAt: nowISO() }] }
               : r,
-          ),
-        })),
+          );
+          const o = reports.find((r) => r.id === rdoId);
+          if (o) up(s, "reports", o);
+          return { reports };
+        }),
       deleteRdoComment: (rdoId, commentId) =>
-        set((s) => ({
-          reports: s.reports.map((r) =>
+        set((s) => {
+          const reports = s.reports.map((r) =>
             r.id === rdoId
               ? { ...r, comments: (r.comments ?? []).filter((x) => x.id !== commentId) }
               : r,
-          ),
-        })),
+          );
+          const o = reports.find((r) => r.id === rdoId);
+          if (o) up(s, "reports", o);
+          return { reports };
+        }),
     }),
     {
       name: "obrareport-ia-store",
