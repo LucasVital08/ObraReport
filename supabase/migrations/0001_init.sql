@@ -4,24 +4,7 @@
 
 create extension if not exists pgcrypto;
 
--- ===================== Funções de contexto (RLS) =====================
--- SECURITY DEFINER: leem o profile do usuário logado sem cair em recursão de RLS.
-create or replace function public.my_company_id() returns uuid
-  language sql stable security definer set search_path = public as $$
-  select company_id from public.profiles where id = auth.uid()
-$$;
-
-create or replace function public.my_role() returns text
-  language sql stable security definer set search_path = public as $$
-  select role from public.profiles where id = auth.uid()
-$$;
-
-create or replace function public.my_client_projects() returns uuid[]
-  language sql stable security definer set search_path = public as $$
-  select coalesce(client_project_ids, '{}') from public.profiles where id = auth.uid()
-$$;
-
--- updated_at automático
+-- updated_at automático (não referencia tabelas; usado pelos triggers abaixo)
 create or replace function public.touch_updated_at() returns trigger
   language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
 
@@ -232,6 +215,24 @@ create table public.documents (
   uploaded_at timestamptz not null default now()
 );
 create index on public.documents(company_id);
+
+-- ===================== Funções de contexto (RLS) =====================
+-- Definidas DEPOIS das tabelas (referenciam public.profiles).
+-- SECURITY DEFINER: leem o profile do usuário logado sem cair em recursão de RLS.
+create or replace function public.my_company_id() returns uuid
+  language sql stable security definer set search_path = public as $$
+  select company_id from public.profiles where id = auth.uid()
+$$;
+
+create or replace function public.my_role() returns text
+  language sql stable security definer set search_path = public as $$
+  select role from public.profiles where id = auth.uid()
+$$;
+
+create or replace function public.my_client_projects() returns uuid[]
+  language sql stable security definer set search_path = public as $$
+  select coalesce(client_project_ids, '{}') from public.profiles where id = auth.uid()
+$$;
 
 -- ===================== RLS =====================
 alter table public.companies      enable row level security;
