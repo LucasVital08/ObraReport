@@ -20,6 +20,37 @@ export default function PlanosPage() {
   const setPlan = useStore((s) => s.setPlan);
   const { show, node } = useToast();
   const [cycle, setCycle] = React.useState<"mensal" | "anual">("mensal");
+  const [busyPlan, setBusyPlan] = React.useState<PlanId | null>(null);
+
+  // Retorno do checkout do Mercado Pago (?status=sucesso).
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("status") === "sucesso") {
+      show("Pagamento recebido! Sua assinatura será ativada em instantes.");
+      window.history.replaceState(null, "", "/app/planos");
+    }
+  }, [show]);
+
+  // Inicia a assinatura: chama o checkout; com Mercado Pago configurado,
+  // redireciona para o pagamento; sem ele, ativa o plano localmente (demo).
+  async function subscribe(plan: PlanId, name: string) {
+    setBusyPlan(plan);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, cycle }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data?.url) { window.location.assign(data.url); return; }
+      if (data?.demo) { setPlan(plan); show(`Plano ${name} ativado!`); return; }
+      show(data?.error || "Não foi possível iniciar a assinatura.");
+    } catch {
+      show("Falha de conexão ao iniciar a assinatura.");
+    } finally {
+      setBusyPlan(null);
+    }
+  }
 
   return (
     <div>
@@ -64,9 +95,13 @@ export default function PlanosPage() {
                 <p className="text-xs text-muted">equivale a R$ {Math.round((p.priceAnnual as number) / 12)}/mês</p>
               )}
               <ul className="mt-4 space-y-2">{p.features.map((f) => <li key={f} className="flex items-start gap-2 text-sm"><CheckCircle2 size={16} className="text-success shrink-0 mt-0.5" /> {f}</li>)}</ul>
-              <Button className="w-full mt-5" variant={current ? "outline" : p.highlight ? "primary" : "secondary"} disabled={current}
-                onClick={() => { setPlan(p.id); show(`Plano ${p.name} ativado!`); }}>
-                {current ? "Plano atual" : isFree ? "Começar grátis" : "Assinar agora"}
+              <Button className="w-full mt-5" variant={current ? "outline" : p.highlight ? "primary" : "secondary"}
+                disabled={current || busyPlan !== null}
+                onClick={() => {
+                  if (isFree) { setPlan(p.id); show(`Plano ${p.name} ativado!`); return; }
+                  subscribe(p.id, p.name);
+                }}>
+                {current ? "Plano atual" : busyPlan === p.id ? "Processando…" : isFree ? "Começar grátis" : "Assinar agora"}
               </Button>
             </Card>
           );
@@ -74,7 +109,8 @@ export default function PlanosPage() {
       </div>
 
       <p className="text-center text-sm text-muted mt-6">
-        Pagamento processado de forma segura. Integração preparada para Mercado Pago, Stripe e Asaas.
+        Pagamento processado de forma segura pelo Mercado Pago (Pix, cartão e boleto).
+        Cancele quando quiser.
       </p>
     </div>
   );

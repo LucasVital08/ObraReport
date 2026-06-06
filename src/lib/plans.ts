@@ -89,6 +89,32 @@ export const PLANS: PlanInfo[] = [
   },
 ];
 
+// ---- Limites por plano (cobrança / gating) ----
+// Infinity = ilimitado. "obras" conta obras ativas (não concluídas/entregues/
+// canceladas). "rdosPerMonth" conta RDOs criados no mês corrente.
+export interface PlanLimits {
+  obras: number;
+  rdosPerMonth: number;
+  users: number;
+  ai: boolean;
+}
+
+export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
+  free: { obras: 1, rdosPerMonth: 2, users: 1, ai: false },
+  basico: { obras: 1, rdosPerMonth: 30, users: 1, ai: true },
+  profissional: { obras: 5, rdosPerMonth: Infinity, users: 10, ai: true },
+  empresa: { obras: Infinity, rdosPerMonth: Infinity, users: Infinity, ai: true },
+};
+
+export function limitsFor(plan: PlanId): PlanLimits {
+  return PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+}
+
+// "Ilimitado" para Infinity; senão o número.
+export function formatLimit(n: number): string {
+  return n === Infinity ? "Ilimitado" : String(n);
+}
+
 export function planById(id: PlanId): PlanInfo | undefined {
   return PLANS.find((p) => p.id === id);
 }

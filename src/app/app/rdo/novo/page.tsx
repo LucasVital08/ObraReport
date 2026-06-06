@@ -10,6 +10,9 @@ import { emptyDraft, applyAiResult, type RdoDraft } from "@/lib/rdo";
 import { useSpeech } from "@/lib/useSpeech";
 import { RdoEditor } from "@/components/rdo-editor";
 import { PageHeader } from "@/components/page";
+import { UpgradeGate } from "@/components/upgrade-gate";
+import { usePlan } from "@/lib/usePlan";
+import { formatLimit } from "@/lib/plans";
 import { Card, Button, Select, Textarea, useToast, Badge } from "@/components/ui";
 import {
   Mic, Square, Sparkles, ArrowRight, ArrowLeft, Save, CheckCircle2, Plus, X, Trophy, Wand2,
@@ -40,6 +43,7 @@ function NovoRdoInner() {
   const user = useStore((s) => s.user);
   const addReport = useStore((s) => s.addReport);
   const { show, node } = useToast();
+  const { canAddRdo, limits, remainingRdos } = usePlan();
 
   const activeProjects = projects.filter((p) => !["entregue", "cancelada"].includes(p.status));
   const initialProject = params.get("obra") || activeProjects[0]?.id || projects[0]?.id || "";
@@ -52,6 +56,7 @@ function NovoRdoInner() {
 
   function start() {
     if (!projectId) { show("Selecione uma obra primeiro."); return; }
+    if (!canAddRdo) { show("Limite de RDOs do mês atingido. Faça upgrade do plano."); return; }
     setStage("creating");
   }
 
@@ -101,7 +106,12 @@ function NovoRdoInner() {
       {node}
       <PageHeader title="Criar RDO" description="Diário de obra inteligente" backHref="/app" />
 
-      {projects.length === 0 ? (
+      {projects.length > 0 && !canAddRdo ? (
+        <UpgradeGate
+          title="Limite de RDOs do mês atingido"
+          description={`Seu plano permite ${formatLimit(limits.rdosPerMonth)} RDO(s) por mês. Faça upgrade para criar relatórios ilimitados.`}
+        />
+      ) : projects.length === 0 ? (
         <Card className="p-6 text-center">
           <p className="font-medium">Você ainda não tem nenhuma obra</p>
           <p className="text-sm text-muted mt-1">Crie uma obra para começar a registrar RDOs.</p>
@@ -125,6 +135,11 @@ function NovoRdoInner() {
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
             </div>
+            {remainingRdos !== Infinity && (
+              <p className="mt-2 text-xs text-white/80">
+                {remainingRdos} RDO(s) restante(s) no seu plano este mês.
+              </p>
+            )}
           </div>
 
           <div className="mt-5 flex items-center justify-between flex-wrap gap-3">

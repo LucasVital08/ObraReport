@@ -14,10 +14,10 @@ ambiente não estiverem configuradas. Ao preencher as chaves, ele entra em
 | Fase | Entrega | Status |
 |---|---|---|
 | **1. Fundação** | Schema do banco + RLS multi-empresa, clientes Supabase, env, este guia | ✅ feito |
-| **2. Autenticação real** | Cadastro/login (e-mail+senha, Google, telefone/SMS), verificação, recuperação, middleware de sessão, onboarding gravando empresa | a fazer |
-| **3. Camada de dados** | Trocar o store local pela leitura/escrita no Supabase, módulo a módulo (obras, RDOs, etc.), mantendo a UI | a fazer |
-| **4. Storage de mídia** | Upload real de fotos/vídeos e documentos para o Supabase Storage (em vez de base64) | a fazer |
-| **5. Cobrança (Mercado Pago)** | Assinatura recorrente, checkout, webhook, e **limites de plano aplicados** (RDOs/mês, obras, usuários) | a fazer |
+| **2. Autenticação real** | Cadastro/login (e-mail+senha, Google, telefone/SMS), verificação, recuperação, middleware de sessão, onboarding gravando empresa | ✅ feito |
+| **3. Camada de dados** | Trocar o store local pela leitura/escrita no Supabase, módulo a módulo (obras, RDOs, etc.), mantendo a UI | ✅ feito |
+| **4. Storage de mídia** | Upload real de fotos/vídeos e documentos para o Supabase Storage (em vez de base64) | ✅ feito |
+| **5. Cobrança (Mercado Pago)** | Assinatura recorrente, checkout, webhook, e **limites de plano aplicados** (RDOs/mês, obras, usuários) | ✅ feito |
 | **6. Voz robusta (Whisper)** | Gravação de áudio + transcrição via OpenAI Whisper (resolve iPhone/Safari) | a fazer |
 | **7. Offline-first + sync** | Fila local de alterações e sincronização ao reconectar (PWA instalável) | a fazer |
 | **8. Convites & equipe** | Convidar membros e contratantes por e-mail/link, papéis e permissões | a fazer |
@@ -42,18 +42,36 @@ ambiente não estiverem configuradas. Ao preencher as chaves, ele entra em
 
 ### 2) Mercado Pago
 1. Crie a aplicação em https://www.mercadopago.com.br/developers.
-2. Copie o **Access Token** (produção) e a **Public Key**.
-3. Configure o webhook apontando para `https://SEU-APP/api/mercadopago/webhook`.
+2. Copie o **Access Token** (produção) → variável `MERCADOPAGO_ACCESS_TOKEN`.
+3. **Webhooks/Notificações**: aponte para `https://SEU-APP/api/billing/webhook`
+   e marque o evento de **assinaturas (preapproval)**.
+4. Como funciona no app: a tela **Planos** chama `POST /api/billing/checkout`,
+   que cria uma **assinatura recorrente (preapproval)** e redireciona o cliente
+   para o Mercado Pago (Pix/cartão/boleto). Ao autorizar, o MP chama o webhook,
+   que ativa o plano da empresa (`subscriptions` + `companies.plan`) via
+   `service_role`. **Sem o token configurado, o checkout entra em modo
+   demonstração** (ativa o plano localmente) — o app nunca quebra.
+5. **Limites de plano** já são aplicados na UI (obras ativas e RDOs/mês) com base
+   em `src/lib/plans.ts` → `PLAN_LIMITS`. Ao estourar o limite, aparece o convite
+   de upgrade.
 
 ### 3) OpenAI (IA já integrada)
 - `OPENAI_API_KEY` (e opcional `OPENAI_MODEL`).
 
 ### 4) Variáveis no Vercel
-Preencha conforme `.env.example`:
+Variáveis usadas pelo código (defina no Vercel):
 ```
-OPENAI_API_KEY, OPENAI_MODEL
-NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-MERCADOPAGO_ACCESS_TOKEN, NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY, MERCADOPAGO_WEBHOOK_SECRET
+# IA (RDO). Sem isso, cai no motor local determinístico.
+OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
+
+# Supabase (banco/auth/storage). Sem isso, o app roda em modo demo local.
+NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY   # usado só no webhook (server)
+
+# Cobrança. Sem o token, o checkout entra em modo demonstração.
+MERCADOPAGO_ACCESS_TOKEN
+
+# URL pública do app (back_url do checkout). Ex.: https://obrareport.vercel.app
 NEXT_PUBLIC_APP_URL
 ```
 Depois faça **Redeploy**.
