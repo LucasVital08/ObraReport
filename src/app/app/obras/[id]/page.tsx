@@ -5,19 +5,21 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
-import { Card, CardHeader, Button, Badge, Tabs, EmptyState, Stat, Select } from "@/components/ui";
+import { Card, CardHeader, Button, Badge, Tabs, EmptyState, Stat, Select, Modal, useToast } from "@/components/ui";
 import {
   RdoStatusBadge, TaskStatusBadge, MaterialStatusBadge,
   EquipmentStatusBadge, IncidentStatusBadge,
 } from "@/components/status";
 import { Avatar } from "@/components/brand";
 import { Timeline } from "@/components/timeline";
+import { ProjectFormFields, projectToForm, formToProject, type ProjectFormState } from "@/components/project-form";
 import { buildFinalReport } from "@/lib/ai/engine";
 import { formatBRL, formatDateBR, diffDays } from "@/lib/utils";
 import { PROJECT_STATUS_LABELS, type ProjectStatus, type ProjectDocument } from "@/lib/types";
 import {
   Building2, Plus, FileText, MapPin, User, Calendar, Wallet, Camera,
   AlertTriangle, ListChecks, FileCheck2, Clock, Eye, Download, Trash2, ShieldCheck,
+  Pencil, ChevronDown,
 } from "lucide-react";
 
 export default function ObraDetailPage() {
@@ -39,9 +41,16 @@ export default function ObraDetailPage() {
   const allIncidents = useStore((s) => s.incidents);
   const allDocuments = useStore((s) => s.documents);
   const isClient = useStore((s) => s.user.role === "client");
+  const { show, node } = useToast();
   const [tab, setTab] = React.useState("visao");
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [form, setForm] = React.useState<ProjectFormState | null>(null);
 
   if (!project) return <EmptyState title="Obra não encontrada" action={<Button onClick={() => router.push("/app/obras")}>Voltar</Button>} />;
+
+  function openEdit() { if (project) { setForm(projectToForm(project)); setEditOpen(true); } }
+  function saveEdit() { if (project && form) { updateProject(project.id, formToProject(form)); setEditOpen(false); show("Obra atualizada!"); } }
+  function setF<K extends keyof ProjectFormState>(k: K, v: ProjectFormState[K]) { setForm((f) => (f ? { ...f, [k]: v } : f)); }
 
   const reports = allReports.filter((r) => r.projectId === id);
   const tasks = allTasks.filter((t) => t.projectId === id);
@@ -84,18 +93,36 @@ export default function ObraDetailPage() {
       <PageHeader title={project.name} description={`${project.client}`} backHref="/app/obras"
         action={isClient ? undefined : <Link href={`/app/rdo/novo?obra=${project.id}`}><Button><Plus size={16} /> Criar RDO</Button></Link>} />
 
+      {node}
       {/* Header card */}
       <Card className="overflow-hidden mb-5">
-        <div className="h-24 flex items-end justify-between p-4" style={{ background: `linear-gradient(135deg, ${project.coverColor}, ${project.coverColor}cc)` }}>
-          <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center text-white"><Building2 size={24} /></div>
-          {isClient ? (
-            <Badge className="bg-white/90 text-graphite">{PROJECT_STATUS_LABELS[project.status]}</Badge>
-          ) : (
-            <Select value={project.status} onChange={(e) => updateProject(project.id, { status: e.target.value as ProjectStatus })}
-              className="w-44 bg-white/90 text-graphite border-0">
-              {Object.entries(PROJECT_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </Select>
-          )}
+        <div className="relative px-5 py-5" style={{ background: `linear-gradient(135deg, ${project.coverColor}, ${project.coverColor}cc)` }}>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+          <div className="relative flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-14 w-14 rounded-2xl bg-white/20 ring-1 ring-white/30 backdrop-blur flex items-center justify-center text-white shrink-0"><Building2 size={26} /></div>
+              <div className="min-w-0">
+                <p className="text-white/75 text-[11px] font-semibold uppercase tracking-wide">Status da obra</p>
+                <p className="text-white text-lg font-bold leading-tight">{PROJECT_STATUS_LABELS[project.status]}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {isClient ? (
+                <Badge className="bg-white/90 text-graphite">{PROJECT_STATUS_LABELS[project.status]}</Badge>
+              ) : (
+                <>
+                  <Button onClick={openEdit} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><Pencil size={15} /> Editar</Button>
+                  <div className="relative w-48">
+                    <Select value={project.status} onChange={(e) => updateProject(project.id, { status: e.target.value as ProjectStatus })}
+                      className="rounded-full bg-white/95 text-graphite border-0 shadow-sm font-semibold h-9 pr-9 text-sm">
+                      {Object.entries(PROJECT_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </Select>
+                    <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-graphite/60" />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
           <Info icon={<User size={15} />} label="Cliente" value={project.client} />
@@ -109,6 +136,14 @@ export default function ObraDetailPage() {
         </div>
         {project.description && <div className="px-4 pb-4 text-sm text-muted">{project.description}</div>}
       </Card>
+
+      {/* Modal de edição da obra */}
+      {form && (
+        <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Editar obra" wide
+          footer={<><Button variant="ghost" onClick={() => setEditOpen(false)}>Cancelar</Button><Button onClick={saveEdit}>Salvar alterações</Button></>}>
+          <ProjectFormFields form={form} set={setF} />
+        </Modal>
+      )}
 
       <div className="mb-5"><Tabs tabs={tabs} active={tab} onChange={setTab} /></div>
 
@@ -287,9 +322,12 @@ function DocumentsTab({ projectId, documents }: { projectId: string; documents: 
 
 function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-2">
-      <span className="text-muted mt-0.5">{icon}</span>
-      <div className="min-w-0"><p className="text-xs text-muted">{label}</p><p className="font-medium truncate">{value}</p></div>
+    <div className="flex items-center gap-2.5">
+      <span className="h-8 w-8 rounded-lg bg-brand-soft text-brand-dark flex items-center justify-center shrink-0">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[11px] text-muted">{label}</p>
+        <p className="font-semibold truncate">{value}</p>
+      </div>
     </div>
   );
 }

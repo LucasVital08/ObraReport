@@ -38,8 +38,9 @@ export default function ObrasPage() {
             const count = reports.filter((r) => r.projectId === p.id).length;
             return (
               <Link key={p.id} href={`/app/obras/${p.id}`}>
-                <Card className="overflow-hidden hover:shadow-md transition-shadow h-full">
-                  <div className="h-20 flex items-end p-3" style={{ background: `linear-gradient(135deg, ${p.coverColor}, ${p.coverColor}cc)` }}>
+                <Card className="overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all h-full">
+                  <div className="relative h-20 p-3 flex items-end justify-between" style={{ background: `linear-gradient(135deg, ${p.coverColor}, ${p.coverColor}cc)` }}>
+                    <div className="h-9 w-9 rounded-xl bg-white/20 ring-1 ring-white/30 backdrop-blur flex items-center justify-center text-white"><Building2 size={18} /></div>
                     <ProjectStatusBadge status={p.status} />
                   </div>
                   <div className="p-4">
