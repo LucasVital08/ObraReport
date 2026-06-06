@@ -23,7 +23,10 @@ function emptyResult(): AiRdoResult {
 }
 
 async function callOpenAI(apiKey: string, system: string, user: string): Promise<Partial<AiRdoResult>> {
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+  // Provedor configurável: padrão OpenAI; pode apontar para qualquer API
+  // compatível (Gemini, Groq, DeepSeek, OpenRouter) via OPENAI_BASE_URL.
+  const base = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+  const resp = await fetch(`${base}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
@@ -36,7 +39,7 @@ async function callOpenAI(apiKey: string, system: string, user: string): Promise
       temperature: 0.1,
     }),
   });
-  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+  if (!resp.ok) throw new Error(`IA ${resp.status}`);
   const data = await resp.json();
   return JSON.parse(data?.choices?.[0]?.message?.content ?? "{}");
 }
