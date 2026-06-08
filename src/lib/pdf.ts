@@ -284,6 +284,37 @@ function signatures(ctx: Ctx, report: DailyReport) {
 }
 
 // ===== RDO diário =====
+// Converte uma URL remota (Storage) em data URL base64. O jsPDF só consegue
+// embutir base64 — se receber uma URL http, a imagem não entra no PDF.
+async function urlToDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const fr = new FileReader();
+      fr.onloadend = () => resolve(typeof fr.result === "string" ? fr.result : null);
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Prepara a mídia do RDO para o PDF: baixa as fotos que estão como URL remota
+// (Supabase Storage) e as transforma em base64. CHAME antes de gerar o PDF.
+export async function embedReportImages<T extends { media: DailyReport["media"] }>(report: T): Promise<T> {
+  const media = await Promise.all((report.media || []).map(async (m) => {
+    if (m.kind === "photo" && m.dataUrl && /^https?:/i.test(m.dataUrl)) {
+      const data = await urlToDataUrl(m.dataUrl);
+      return data ? { ...m, dataUrl: data } : m;
+    }
+    return m;
+  }));
+  return { ...report, media };
+}
+
 // `visibility` indefinido = PDF interno completo. Quando informado (versão do
 // contratante), as seções sensíveis são omitidas conforme a política da empresa.
 export function generateRdoPdf(report: DailyReport, project: Project, company: Company, visibility?: ClientVisibility): jsPDF {

@@ -10,7 +10,7 @@ import { Card, CardHeader, Button, Badge, Modal, Field, Input, Select, useToast,
 import { RdoStatusBadge } from "@/components/status";
 import { Avatar } from "@/components/brand";
 import { evaluateCompleteness } from "@/lib/ai/engine";
-import { generateRdoPdf } from "@/lib/pdf";
+import { generateRdoPdf, embedReportImages } from "@/lib/pdf";
 import { getClientVisibility, CLIENT_VISIBILITY_SECTIONS } from "@/lib/visibility";
 import { formatBRL, formatDateBR, uid, nowISO } from "@/lib/utils";
 import { RDO_STATUS_LABELS, ROLE_LABELS, type RdoStatus, type Signature, type DailyReport } from "@/lib/types";
@@ -55,9 +55,12 @@ export default function RdoViewPage() {
   const hiddenLabels = CLIENT_VISIBILITY_SECTIONS.filter((s) => !vis[s.key]).map((s) => s.label);
 
   // PDF: versão do contratante (filtrada) quando for o cliente ou ao compartilhar.
-  function downloadPdf(forClient = isClient) {
+  // Baixa as fotos do Storage para base64 antes (jsPDF não embute URL remota).
+  async function downloadPdf(forClient = isClient) {
     if (!project) return;
-    const doc = generateRdoPdf(report!, project, company, forClient ? vis : undefined);
+    show("Gerando PDF…");
+    const reportForPdf = await embedReportImages(report!);
+    const doc = generateRdoPdf(reportForPdf, project, company, forClient ? vis : undefined);
     doc.save(`RDO-${report!.number}-${project.name.slice(0, 20)}.pdf`);
     show("PDF gerado!");
   }

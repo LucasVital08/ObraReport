@@ -10,7 +10,7 @@ import { useStore } from "@/lib/store";
 import { uploadFile } from "@/lib/data/storage";
 import {
   Plus, X, Clock, Users, Hammer, Package, Wrench, AlertTriangle,
-  MessageSquare, ListTodo, FileText, Camera, CheckCircle2, Circle, Sparkles, ImagePlus,
+  MessageSquare, ListTodo, FileText, Camera, CheckCircle2, Circle, Sparkles, ImagePlus, Trash2,
 } from "lucide-react";
 
 interface Props {
@@ -236,6 +236,7 @@ function MediaCard({ media, onSet, author }: { media: MediaItem[]; onSet: (m: Me
   const cameraRef = React.useRef<HTMLInputElement>(null);
   const companyId = useStore((s) => s.user.companyId);
   const [uploading, setUploading] = React.useState(false);
+  const [activeId, setActiveId] = React.useState(""); // foto tocada (revela a lixeira no celular)
   const [phase, setPhase] = React.useState<MediaItem["phase"]>("durante");
 
   function addPlaceholder(kind: MediaItem["kind"]) {
@@ -284,21 +285,34 @@ function MediaCard({ media, onSet, author }: { media: MediaItem[]; onSet: (m: Me
           ))}
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {media.map((m, i) => (
-            <div key={m.id} className="relative group rounded-xl overflow-hidden aspect-square border border-border">
-              {m.dataUrl ? (
-                <img src={m.dataUrl} alt={m.caption} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center" style={{ background: m.color }}>
-                  {m.kind === "video" ? <span className="text-white text-2xl">▶</span> : <Camera size={20} className="text-white/80" />}
-                </div>
-              )}
-              <span className="absolute top-1 left-1 text-[10px] bg-black/60 text-white rounded px-1 capitalize">{m.phase}</span>
-              <button onClick={() => onSet(media.filter((_, j) => j !== i))} className="absolute top-1 right-1 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100"><X size={12} /></button>
-              <input value={m.caption} onChange={(e) => onSet(media.map((x, j) => j === i ? { ...x, caption: e.target.value } : x))}
-                className="absolute bottom-0 inset-x-0 text-[10px] bg-black/60 text-white px-1 py-0.5 outline-none" />
-            </div>
-          ))}
+          {media.map((m, i) => {
+            const active = activeId === m.id;
+            function remove() {
+              if (confirm("Excluir esta foto?")) { onSet(media.filter((_, j) => j !== i)); setActiveId(""); }
+            }
+            return (
+              <div key={m.id} onClick={() => setActiveId(active ? "" : m.id)}
+                className={`relative group rounded-xl overflow-hidden aspect-square border cursor-pointer ${active ? "border-danger ring-2 ring-danger/40" : "border-border"}`}>
+                {m.dataUrl ? (
+                  <img src={m.dataUrl} alt={m.caption} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center" style={{ background: m.color }}>
+                    {m.kind === "video" ? <span className="text-white text-2xl">▶</span> : <Camera size={20} className="text-white/80" />}
+                  </div>
+                )}
+                <span className="absolute top-1 left-1 text-[10px] bg-black/60 text-white rounded px-1 capitalize">{m.phase}</span>
+                {/* Lixeira: aparece ao tocar a foto (celular) ou no hover (desktop). */}
+                <button type="button" onClick={(e) => { e.stopPropagation(); remove(); }}
+                  aria-label="Excluir foto"
+                  className={`absolute top-1 right-1 bg-danger text-white rounded-md p-1 transition-opacity ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                  <Trash2 size={13} />
+                </button>
+                <input value={m.caption} onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => onSet(media.map((x, j) => j === i ? { ...x, caption: e.target.value } : x))}
+                  className="absolute bottom-0 inset-x-0 text-[10px] bg-black/60 text-white px-1 py-0.5 outline-none" />
+              </div>
+            );
+          })}
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileRef.current?.click()}><ImagePlus size={14} /> {uploading ? "Enviando…" : "Galeria / arquivos"}</Button>

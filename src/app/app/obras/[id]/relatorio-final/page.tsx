@@ -4,7 +4,7 @@ import React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { buildFinalReport } from "@/lib/ai/engine";
-import { generateFinalPdf } from "@/lib/pdf";
+import { generateFinalPdf, embedReportImages } from "@/lib/pdf";
 import { getClientVisibility } from "@/lib/visibility";
 import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Badge, EmptyState, useToast } from "@/components/ui";
@@ -47,14 +47,16 @@ export default function RelatorioFinalPage() {
   const allPhotos = reports.flatMap((r) => r.media).filter((m) => m.kind === "photo");
   const totalExpenses = ai.gastos_resumidos.reduce((a, g) => a + g.total, 0);
 
-  function generate() {
+  async function generate() {
     if (!project || !ai) return;
     saveFinalReport({
       projectId: project!.id, generatedAt: new Date().toISOString(),
       executiveSummary: ai.resumo_geral_da_obra, technicalConclusion: ai.conclusao_tecnica,
       recommendations: ai.recomendacoes, options: opts,
     });
-    const doc = generateFinalPdf(project!, company, ai, reports, opts);
+    show("Gerando PDF…");
+    const reportsForPdf = await Promise.all(reports.map(embedReportImages));
+    const doc = generateFinalPdf(project!, company, ai, reportsForPdf, opts);
     doc.save(`Relatorio-Final-${project!.name.slice(0, 25)}.pdf`);
     show("Relatório final gerado!");
   }

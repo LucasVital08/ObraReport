@@ -56,6 +56,7 @@ function NovoRdoInner() {
   const [draft, setDraft] = React.useState<RdoDraft | null>(saved?.draft ?? null);
   const [answers, setAnswers] = React.useState<Record<string, string>>(saved?.answers ?? {});
   const [idx, setIdx] = React.useState(saved?.idx ?? 0);
+  const [saving, setSaving] = React.useState(false);
 
   const project = projects.find((p) => p.id === projectId);
   const teamNames = team.filter((t) => t.projectId === projectId || !t.projectId).map((t) => t.name);
@@ -78,11 +79,11 @@ function NovoRdoInner() {
   }
 
   function save() {
-    if (!draft) return;
+    if (!draft || saving) return; // trava contra toque duplo (evita RDO duplicado)
+    setSaving(true);
     const id = addReport(draft);
     clearProgress();
-    show("RDO salvo com sucesso!");
-    setTimeout(() => router.push(`/app/rdo/${id}`), 500);
+    router.push(`/app/rdo/${id}`);
   }
 
   // ---- Tela cheia imersiva de criação ----
@@ -109,11 +110,11 @@ function NovoRdoInner() {
             <Button variant="ghost" size="sm" onClick={() => setStage("creating")}><ArrowLeft size={16} /> Refazer</Button>
             <Badge tone="brand"><Sparkles size={12} /> Revisão do RDO</Badge>
           </div>
-          <Button onClick={save}><Save size={16} /> Salvar RDO</Button>
+          <Button onClick={save} disabled={saving}><Save size={16} /> {saving ? "Salvando…" : "Salvar RDO"}</Button>
         </div>
         <RdoEditor draft={draft} onChange={(patch) => setDraft({ ...draft, ...patch })} teamSuggestions={teamNames} />
         <div className="mt-5 flex justify-end">
-          <Button size="lg" onClick={save}><Save size={18} /> Salvar RDO</Button>
+          <Button size="lg" onClick={save} disabled={saving}><Save size={18} /> {saving ? "Salvando…" : "Salvar RDO"}</Button>
         </div>
       </div>
     );

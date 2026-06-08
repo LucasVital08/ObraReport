@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { generateRdoPdf } from "@/lib/pdf";
+import { generateRdoPdf, embedReportImages } from "@/lib/pdf";
 import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Select, EmptyState, Badge, useToast } from "@/components/ui";
 import { RdoStatusBadge } from "@/components/status";
@@ -21,11 +21,13 @@ export default function RelatoriosPage() {
   const filtered = filter ? reports.filter((r) => r.projectId === filter) : reports;
   const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
 
-  function pdf(rid: string) {
+  async function pdf(rid: string) {
     const r = reports.find((x) => x.id === rid)!;
     const p = projects.find((x) => x.id === r.projectId);
     if (!p) return;
-    generateRdoPdf(r, p, company).save(`RDO-${r.number}.pdf`);
+    show("Gerando PDF…");
+    const rForPdf = await embedReportImages(r);
+    generateRdoPdf(rForPdf, p, company).save(`RDO-${r.number}.pdf`);
     show("PDF gerado!");
   }
 
