@@ -20,7 +20,7 @@ ambiente não estiverem configuradas. Ao preencher as chaves, ele entra em
 | **5. Cobrança (Mercado Pago)** | Assinatura recorrente, checkout, webhook, e **limites de plano aplicados** (RDOs/mês, obras, usuários) | ✅ feito |
 | **6. Voz robusta (Whisper)** | Gravação de áudio + transcrição (Whisper/Groq/Gemini) com fallback automático no iPhone/Safari | ✅ feito |
 | **7. Offline-first + sync** | Fila local de alterações (outbox) reenviada ao reconectar + PWA instalável (service worker, abre offline) | ✅ feito |
-| **8. Convites & equipe** | Convidar membros e contratantes por e-mail/link, papéis e permissões | a fazer |
+| **8. Convites & equipe** | Convidar membros e contratantes por link, papéis e permissões, gestão de acessos | ✅ feito |
 | **9. Produção/qualidade** | Monitoramento (Sentry), rate-limit na IA, e-mails transacionais, LGPD (exportar/excluir dados), termos | a fazer |
 
 ---
@@ -30,7 +30,8 @@ ambiente não estiverem configuradas. Ao preencher as chaves, ele entra em
 ### 1) Supabase
 1. Crie um projeto em https://supabase.com (região São Paulo).
 2. **SQL Editor** → cole `supabase/migrations/0001_init.sql` → **Run**. Isso cria
-   o schema, RLS, triggers de cadastro e os buckets de Storage.
+   o schema, RLS, triggers de cadastro e os buckets de Storage. Em seguida rode
+   `supabase/migrations/0002_invites.sql` (convites de equipe/contratante).
 3. **Project Settings → API**: copie `Project URL`, `anon public key` e
    `service_role key`.
 4. **Authentication → Providers**:
@@ -105,6 +106,10 @@ Depois faça **Redeploy**.
   Supabase passam por uma **fila (outbox)**: sem rede ou em erro, ficam na fila e são
   reenviadas ao reconectar (evento `online` + retry a cada 20s). Um indicador mostra
   "offline / sincronizando / N na fila".
+- **Convites & acessos:** owner/admin geram um link em **Equipe & acessos**
+  (`/app/acessos`). O convidado abre `/convite/<token>`, entra/cria conta e o
+  `accept_invite()` (SECURITY DEFINER) move o perfil para a empresa com o papel
+  definido. Contratante (role `client`) recebe só as obras escolhidas no convite.
 - **PWA instalável:** `public/manifest.webmanifest` + service worker (`public/sw.js`,
   registrado em `PwaLayer`). Estáticos do Next em cache-first; navegação em
   network-first com fallback ao cache (abre offline); **API/auth nunca são cacheadas**.

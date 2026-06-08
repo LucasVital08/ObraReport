@@ -16,10 +16,10 @@ import {
   LayoutDashboard, Building2, FileText, Images, ListChecks, Users, Clock,
   Package, Wrench, ClipboardCheck, AlertTriangle, Wallet, BarChart3,
   Contact as ContactIcon, CreditCard, Settings, Shield,
-  Plus, Menu, X, LogOut, Moon, Sun, Sparkles,
+  Plus, Menu, X, LogOut, Moon, Sun, Sparkles, UserPlus,
 } from "lucide-react";
 
-interface NavItem { href: string; label: string; icon: React.ElementType; }
+interface NavItem { href: string; label: string; icon: React.ElementType; roles?: string[]; }
 
 const NAV: { group: string; items: NavItem[] }[] = [
   {
@@ -54,6 +54,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: "Conta",
     items: [
+      { href: "/app/acessos", label: "Equipe & acessos", icon: UserPlus, roles: ["owner", "admin"] },
       { href: "/app/planos", label: "Planos", icon: CreditCard },
       { href: "/app/config", label: "Configurações", icon: Settings },
       { href: "/app/admin", label: "Painel admin", icon: Shield },
@@ -156,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div key={group.group}>
               <p className="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">{group.group}</p>
               <div className="space-y-0.5">
-                {group.items.map((item) => {
+                {group.items.filter((item) => !item.roles || item.roles.includes(user.role)).map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link
@@ -268,7 +269,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div key={group.group}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">{group.group}</p>
                   <div className="grid grid-cols-3 gap-2">
-                    {group.items.map((item) => {
+                    {group.items.filter((item) => !item.roles || item.roles.includes(user.role)).map((item) => {
                       const Icon = item.icon;
                       return (
                         <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)}
