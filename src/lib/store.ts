@@ -1,9 +1,20 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { createSeedData, type AppData } from "@/lib/seed";
 import { nowISO, uid } from "@/lib/utils";
+
+// localStorage à prova de erros: se a cota estourar (ex.: muitas fotos em
+// base64 no modo sem Supabase), apenas avisa e segue — sem quebrar o app.
+const safeStorage = {
+  getItem: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
+  setItem: (k: string, v: string) => {
+    try { localStorage.setItem(k, v); }
+    catch (e) { console.warn("[store] não foi possível persistir (cota cheia?)", e); }
+  },
+  removeItem: (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } },
+};
 import { isSupabaseEnabled } from "@/lib/supabase/config";
 import { syncUpsert, syncDelete } from "@/lib/data/sync";
 import type { CompanyData } from "@/lib/data/repo";
@@ -368,6 +379,7 @@ export const useStore = create<State>()(
     }),
     {
       name: "obrareport-ia-store",
+      storage: createJSONStorage(() => safeStorage),
       // Backfill defensivo: estados persistidos por versões antigas podem não
       // ter alguns arrays (ex.: documents, finalReports), o que causava crash
       // ao acessar `.filter`. Garantimos que todas as coleções existam.
