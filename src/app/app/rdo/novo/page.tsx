@@ -15,7 +15,7 @@ import { usePlan } from "@/lib/usePlan";
 import { formatLimit } from "@/lib/plans";
 import { Card, Button, Select, Textarea, useToast, Badge } from "@/components/ui";
 import {
-  Mic, Square, Sparkles, ArrowRight, ArrowLeft, Save, CheckCircle2, Plus, X, Trophy, Wand2,
+  Mic, Square, Sparkles, ArrowRight, ArrowLeft, Save, CheckCircle2, Plus, X, Trophy, Wand2, Loader2,
 } from "lucide-react";
 
 type Stage = "intro" | "creating" | "review";
@@ -176,33 +176,38 @@ function ImmersiveCreator({ projectId, projectName, supervisor, onCancel, onDone
   const committed = answers[current.key] || "";
   const liveTail = speech.listening ? (speech.transcript + speech.interim).trim() : "";
   const displayValue = speech.listening ? (committed ? committed + " " : "") + liveTail : committed;
+  const micBusy = speech.listening || speech.transcribing;
 
-  function commitSpeech() {
-    const t = speech.transcript.trim();
-    if (t) setAnswers((a) => ({ ...a, [current.key]: (a[current.key] ? a[current.key] + " " : "") + t }));
+  // Finaliza a captura de voz do trecho atual e devolve o mapa de respostas já
+  // com o texto reconhecido aplicado à pergunta corrente (stop() é assíncrono).
+  async function captureCurrent(): Promise<Record<string, string>> {
+    let extra = "";
+    if (speech.listening || speech.transcribing) extra = (await speech.stop()).trim();
     speech.reset();
-  }
-  function toggleMic() {
-    if (speech.listening) { speech.stop(); commitSpeech(); }
-    else { speech.reset(); speech.start(); }
-  }
-  function goPrev() {
-    if (speech.listening) { speech.stop(); commitSpeech(); }
-    if (idx > 0) { setIdx(idx - 1); speech.reset(); }
-  }
-  function goNext() {
-    if (speech.listening) { speech.stop(); commitSpeech(); }
-    if (idx < total - 1) { setIdx(idx + 1); speech.reset(); }
-    else finish();
+    const key = current.key;
+    if (!extra) return answers;
+    return { ...answers, [key]: (answers[key] ? answers[key] + " " : "") + extra };
   }
 
-  async function finish() {
+  async function toggleMic() {
+    if (micBusy) { setAnswers(await captureCurrent()); }
+    else { speech.reset(); await speech.start(); }
+  }
+  async function goPrev() {
+    const next = await captureCurrent();
+    setAnswers(next);
+    if (idx > 0) setIdx(idx - 1);
+  }
+  async function goNext() {
+    const next = await captureCurrent();
+    setAnswers(next);
+    if (idx < total - 1) setIdx(idx + 1);
+    else finish(next);
+  }
+
+  async function finish(mergedInput?: Record<string, string>) {
     if (busy) return;
-    if (speech.listening) speech.stop();
-    const merged = { ...answers };
-    const t = speech.transcript.trim();
-    if (t) merged[current.key] = (merged[current.key] ? merged[current.key] + " " : "") + t;
-
+    const merged = { ...(mergedInput ?? answers) };
     const isNegative = (s: string) => {
       const v = s.trim().toLowerCase();
       return v === "-" || /^(n[ãa]o|nada|nenhum|nenhuma|sem|n\/a)\b/.test(v);
@@ -264,19 +269,23 @@ function ImmersiveCreator({ projectId, projectName, supervisor, onCancel, onDone
           {/* Microfone grande */}
           <div className="flex flex-col items-center text-center mt-8">
             {speech.supported && (
-              <button onClick={toggleMic}
-                className={`h-24 w-24 rounded-full flex items-center justify-center text-white transition-all ${speech.listening ? "bg-danger animate-pulse-ring" : "bg-brand hover:bg-brand-dark"}`}>
-                {speech.listening ? <Square size={32} /> : <Mic size={40} />}
+              <button onClick={toggleMic} disabled={speech.transcribing}
+                className={`h-24 w-24 rounded-full flex items-center justify-center text-white transition-all disabled:opacity-80 ${speech.listening ? "bg-danger animate-pulse-ring" : speech.transcribing ? "bg-brand/70" : "bg-brand hover:bg-brand-dark"}`}>
+                {speech.transcribing ? <Loader2 size={32} className="animate-spin" /> : speech.listening ? <Square size={32} /> : <Mic size={40} />}
               </button>
             )}
             <p className="mt-3 text-sm text-muted">
-              {speech.listening ? "Ouvindo… fale agora" : speech.supported ? "Toque para falar — ou digite abaixo" : "Digite sua resposta abaixo"}
+              {speech.transcribing ? "Transcrevendo o áudio…"
+                : speech.listening ? (speech.mode === "recorder" ? "Gravando… toque para finalizar" : "Ouvindo… fale agora")
+                : speech.supported ? "Toque para falar — ou digite abaixo"
+                : "Digite sua resposta abaixo"}
             </p>
+            {speech.error && <p className="mt-1 text-xs text-danger max-w-xs">{speech.error}</p>}
           </div>
 
           {/* Resposta por teclado (largura cheia) */}
           <div className="mt-6">
-            <Textarea value={displayValue} readOnly={speech.listening}
+            <Textarea value={displayValue} readOnly={micBusy}
               onChange={(e) => setAnswers({ ...answers, [current.key]: e.target.value })}
               placeholder="Digite a resposta aqui — ou toque no microfone acima…"
               className="w-full min-h-40 text-base leading-relaxed" />
@@ -287,13 +296,13 @@ function ImmersiveCreator({ projectId, projectName, supervisor, onCancel, onDone
       {/* Navegação */}
       <div className="shrink-0 border-t border-border bg-surface">
         <div className="max-w-2xl mx-auto w-full px-5 py-3 flex items-center justify-between gap-2">
-          <Button variant="ghost" onClick={goPrev} disabled={idx === 0}><ArrowLeft size={16} /> Anterior</Button>
+          <Button variant="ghost" onClick={goPrev} disabled={idx === 0 || speech.transcribing}><ArrowLeft size={16} /> Anterior</Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={goNext}>Pular</Button>
+            <Button variant="outline" onClick={goNext} disabled={speech.transcribing}>Pular</Button>
             {isLast ? (
-              <Button onClick={finish}><CheckCircle2 size={16} /> Concluir</Button>
+              <Button onClick={goNext} disabled={speech.transcribing}><CheckCircle2 size={16} /> Concluir</Button>
             ) : (
-              <Button onClick={goNext}>Próxima <ArrowRight size={16} /></Button>
+              <Button onClick={goNext} disabled={speech.transcribing}>Próxima <ArrowRight size={16} /></Button>
             )}
           </div>
         </div>

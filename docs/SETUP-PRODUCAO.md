@@ -18,7 +18,7 @@ ambiente não estiverem configuradas. Ao preencher as chaves, ele entra em
 | **3. Camada de dados** | Trocar o store local pela leitura/escrita no Supabase, módulo a módulo (obras, RDOs, etc.), mantendo a UI | ✅ feito |
 | **4. Storage de mídia** | Upload real de fotos/vídeos e documentos para o Supabase Storage (em vez de base64) | ✅ feito |
 | **5. Cobrança (Mercado Pago)** | Assinatura recorrente, checkout, webhook, e **limites de plano aplicados** (RDOs/mês, obras, usuários) | ✅ feito |
-| **6. Voz robusta (Whisper)** | Gravação de áudio + transcrição via OpenAI Whisper (resolve iPhone/Safari) | a fazer |
+| **6. Voz robusta (Whisper)** | Gravação de áudio + transcrição (Whisper/Groq/Gemini) com fallback automático no iPhone/Safari | ✅ feito |
 | **7. Offline-first + sync** | Fila local de alterações e sincronização ao reconectar (PWA instalável) | a fazer |
 | **8. Convites & equipe** | Convidar membros e contratantes por e-mail/link, papéis e permissões | a fazer |
 | **9. Produção/qualidade** | Monitoramento (Sentry), rate-limit na IA, e-mails transacionais, LGPD (exportar/excluir dados), termos | a fazer |
@@ -56,13 +56,29 @@ ambiente não estiverem configuradas. Ao preencher as chaves, ele entra em
    de upgrade.
 
 ### 3) OpenAI (IA já integrada)
-- `OPENAI_API_KEY` (e opcional `OPENAI_MODEL`).
+- `OPENAI_API_KEY` (e opcional `OPENAI_MODEL`, `OPENAI_BASE_URL` para Gemini/Groq/etc.).
+
+### 3.1) Voz (transcrição) — resolve o iPhone/Safari
+- No Chrome/Android o app usa a Web Speech API (grátis, ao vivo). No **iPhone/Safari**,
+  que não têm Web Speech confiável, o app **grava o áudio** e envia para
+  `POST /api/ai/transcribe`.
+- A transcrição usa, nesta ordem: provedor dedicado (`TRANSCRIBE_API_KEY` /
+  `TRANSCRIBE_BASE_URL` / `TRANSCRIBE_MODEL`) → OpenAI Whisper (`OPENAI_API_KEY`) →
+  Gemini nativo (detectado pela base `generativelanguage`).
+- **Dica barata/rápida:** use o Whisper do **Groq** (compatível com OpenAI):
+  `TRANSCRIBE_BASE_URL=https://api.groq.com/openai/v1`,
+  `TRANSCRIBE_MODEL=whisper-large-v3`, `TRANSCRIBE_API_KEY=<sua chave Groq>`.
+- Sem nenhuma chave de transcrição, o microfone no iPhone informa que a transcrição
+  está indisponível e o usuário digita normalmente (o app não quebra).
 
 ### 4) Variáveis no Vercel
 Variáveis usadas pelo código (defina no Vercel):
 ```
 # IA (RDO). Sem isso, cai no motor local determinístico.
 OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
+
+# Voz/transcrição (opcional; resolve iPhone/Safari). Sem isso, o iPhone digita.
+TRANSCRIBE_API_KEY, TRANSCRIBE_BASE_URL, TRANSCRIBE_MODEL
 
 # Supabase (banco/auth/storage). Sem isso, o app roda em modo demo local.
 NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
