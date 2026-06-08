@@ -11,7 +11,7 @@ import { RdoStatusBadge } from "@/components/status";
 import { Avatar } from "@/components/brand";
 import { evaluateCompleteness } from "@/lib/ai/engine";
 import { generateRdoPdf } from "@/lib/pdf";
-import { getClientVisibility } from "@/lib/visibility";
+import { getClientVisibility, CLIENT_VISIBILITY_SECTIONS } from "@/lib/visibility";
 import { formatBRL, formatDateBR, uid, nowISO } from "@/lib/utils";
 import { RDO_STATUS_LABELS, ROLE_LABELS, type RdoStatus, type Signature, type DailyReport } from "@/lib/types";
 import {
@@ -36,6 +36,7 @@ export default function RdoViewPage() {
   const [signOpen, setSignOpen] = React.useState(false);
   const [signLocked, setSignLocked] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
+  const [pdfChoiceOpen, setPdfChoiceOpen] = React.useState(false);
 
   if (!report) {
     return <EmptyState title="RDO não encontrado" description="Este relatório pode ter sido removido." action={<Button onClick={() => router.push("/app")}>Voltar ao início</Button>} />;
@@ -51,6 +52,7 @@ export default function RdoViewPage() {
   const showPending = !isClient || vis.pendencias;
   const occLines = showOcc ? [...report.occurrences, ...report.impediments] : [];
   const pendingLines = showPending ? report.pending : [];
+  const hiddenLabels = CLIENT_VISIBILITY_SECTIONS.filter((s) => !vis[s.key]).map((s) => s.label);
 
   // PDF: versão do contratante (filtrada) quando for o cliente ou ao compartilhar.
   function downloadPdf(forClient = isClient) {
@@ -93,7 +95,7 @@ export default function RdoViewPage() {
                 <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}><Share2 size={15} /> Compartilhar</Button>
               </>
             )}
-            <Button size="sm" onClick={() => downloadPdf()}><FileDown size={15} /> PDF</Button>
+            <Button size="sm" onClick={() => (isClient ? downloadPdf() : setPdfChoiceOpen(true))}><FileDown size={15} /> PDF</Button>
           </div>
         }
       />
@@ -257,6 +259,9 @@ export default function RdoViewPage() {
 
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} report={report} project={project?.name || ""}
         onPdf={() => downloadPdf(true)} onShared={() => { updateReport(report.id, { status: report.status === "assinado" || report.status === "aprovado" ? report.status : "enviado" }); show("Marcado como enviado."); }} />
+
+      <PdfChoiceModal open={pdfChoiceOpen} onClose={() => setPdfChoiceOpen(false)}
+        onFull={() => downloadPdf(false)} onClient={() => downloadPdf(true)} hiddenLabels={hiddenLabels} />
     </div>
   );
 }
@@ -383,6 +388,37 @@ function SignModal({ open, onClose, onSign, defaultName, lockedRole }: {
           <span className="text-muted">Declaro que visualizei as informações constantes neste relatório e confirmo ciência sobre os serviços, ocorrências, fotos e pendências nele registradas.</span>
         </label>
       </div>
+    </Modal>
+  );
+}
+
+// Escolha da versão do PDF (uso interno): completa × versão do contratante.
+function PdfChoiceModal({ open, onClose, onFull, onClient, hiddenLabels }: {
+  open: boolean; onClose: () => void; onFull: () => void; onClient: () => void; hiddenLabels: string[];
+}) {
+  return (
+    <Modal open={open} onClose={onClose} title="Gerar PDF">
+      <div className="space-y-2">
+        <button onClick={() => { onFull(); onClose(); }}
+          className="w-full flex items-center gap-3 rounded-xl border border-border p-3 hover:border-brand text-left">
+          <div className="h-10 w-10 rounded-xl bg-brand-soft text-brand-dark flex items-center justify-center shrink-0"><FileText size={20} /></div>
+          <div>
+            <p className="font-medium">Versão completa (uso interno)</p>
+            <p className="text-sm text-muted">Todas as seções: equipe, ocorrências, gastos, pendências e observações.</p>
+          </div>
+        </button>
+        <button onClick={() => { onClient(); onClose(); }}
+          className="w-full flex items-center gap-3 rounded-xl border border-border p-3 hover:border-brand text-left">
+          <div className="h-10 w-10 rounded-xl bg-success-soft text-success flex items-center justify-center shrink-0"><ShieldCheck size={20} /></div>
+          <div>
+            <p className="font-medium">Versão para o contratante</p>
+            <p className="text-sm text-muted">
+              {hiddenLabels.length ? `Oculta: ${hiddenLabels.join(", ")}.` : "Política atual não oculta nenhuma seção."}
+            </p>
+          </div>
+        </button>
+      </div>
+      <p className="text-xs text-muted mt-3">Ajuste o que o contratante vê em Configurações → “O que o contratante enxerga”.</p>
     </Modal>
   );
 }
