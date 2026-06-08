@@ -10,7 +10,7 @@ import { useStore } from "@/lib/store";
 import { uploadFile } from "@/lib/data/storage";
 import {
   Plus, X, Clock, Users, Hammer, Package, Wrench, AlertTriangle,
-  MessageSquare, ListTodo, FileText, Camera, CheckCircle2, Circle, Sparkles,
+  MessageSquare, ListTodo, FileText, Camera, CheckCircle2, Circle, Sparkles, ImagePlus,
 } from "lucide-react";
 
 interface Props {
@@ -233,6 +233,7 @@ function ItemListCard({ title, icon, items, onSet }: {
 
 function MediaCard({ media, onSet, author }: { media: MediaItem[]; onSet: (m: MediaItem[]) => void; author: string }) {
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
   const companyId = useStore((s) => s.user.companyId);
   const [uploading, setUploading] = React.useState(false);
   const [phase, setPhase] = React.useState<MediaItem["phase"]>("durante");
@@ -300,10 +301,14 @@ function MediaCard({ media, onSet, author }: { media: MediaItem[]; onSet: (m: Me
           ))}
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileRef.current?.click()}><Camera size={14} /> {uploading ? "Enviando…" : "Enviar foto/vídeo"}</Button>
+          <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileRef.current?.click()}><ImagePlus size={14} /> {uploading ? "Enviando…" : "Galeria / arquivos"}</Button>
+          <Button size="sm" variant="outline" disabled={uploading} onClick={() => cameraRef.current?.click()}><Camera size={14} /> Tirar foto</Button>
           <Button size="sm" variant="ghost" onClick={() => addPlaceholder("photo")}><Plus size={14} /> Foto exemplo</Button>
           <Button size="sm" variant="ghost" onClick={() => addPlaceholder("video")}><Plus size={14} /> Vídeo exemplo</Button>
-          <input ref={fileRef} type="file" accept="image/*,video/*" multiple capture="environment" className="hidden" onChange={onFiles} />
+          {/* Galeria/arquivos: SEM capture, abre a biblioteca/arquivos do aparelho. */}
+          <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={onFiles} />
+          {/* Câmera: capture abre direto a câmera no celular. */}
+          <input ref={cameraRef} type="file" accept="image/*,video/*" capture="environment" className="hidden" onChange={onFiles} />
         </div>
       </div>
     </Card>
