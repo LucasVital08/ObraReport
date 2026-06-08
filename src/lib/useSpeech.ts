@@ -29,20 +29,17 @@ type SpeechCtorWindow = {
 
 export type VoiceMode = "speech" | "recorder" | "none";
 
-// iOS/iPadOS (qualquer navegador é WebKit) e Safari de desktop: a Web Speech API
-// é instável; usamos gravação + transcrição no servidor.
+// Preferimos SEMPRE a Web Speech API quando existe (inclui iPhone/Safari): ela
+// mostra a transcrição AO VIVO enquanto a pessoa fala. Só caímos para gravação +
+// transcrição no servidor quando o navegador não tem Web Speech.
 function detectMode(): VoiceMode {
   if (typeof window === "undefined") return "none";
-  const ua = navigator.userAgent || "";
-  const isIOS = /iP(hone|ad|od)/.test(ua) || (/(Macintosh)/.test(ua) && "ontouchend" in document);
-  const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(ua);
   const w = window as unknown as SpeechCtorWindow;
   const hasSpeech = !!(w.SpeechRecognition || w.webkitSpeechRecognition);
   const hasRecorder = typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
 
-  if (hasSpeech && !isIOS && !isSafari) return "speech";
-  if (hasRecorder) return "recorder";
-  if (hasSpeech) return "speech";
+  if (hasSpeech) return "speech"; // transcrição ao vivo
+  if (hasRecorder) return "recorder"; // fallback: grava e transcreve depois
   return "none";
 }
 
@@ -65,6 +62,7 @@ export function useSpeech() {
   const recRef = React.useRef<SpeechRecognitionLike | null>(null);
   const segmentRef = React.useRef(""); // texto final do trecho atual (modo speech)
   const resolverRef = React.useRef<((t: string) => void) | null>(null);
+  const wantRef = React.useRef(false); // usuário ainda quer ouvir (reinício no iOS)
 
   // recorder
   const mediaRef = React.useRef<MediaRecorder | null>(null);
@@ -92,6 +90,11 @@ export function useSpeech() {
           if (ev?.error && ev.error !== "no-speech" && ev.error !== "aborted") setError("Não consegui ouvir. Tente novamente ou digite.");
         };
         rec.onend = () => {
+          // iOS encerra o reconhecimento sozinho após pausas. Se o usuário ainda
+          // quer falar (não pediu parar), reinicia para manter a captura ao vivo.
+          if (wantRef.current && !resolverRef.current) {
+            try { rec.start(); return; } catch { /* segue para finalizar */ }
+          }
           setListening(false);
           setInterim("");
           if (resolverRef.current) { resolverRef.current(segmentRef.current.trim()); resolverRef.current = null; }
@@ -100,6 +103,7 @@ export function useSpeech() {
       }
     }
     return () => {
+      wantRef.current = false; // evita reinício após desmontar
       try { recRef.current?.stop(); } catch { /* ignore */ }
       try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* ignore */ }
     };
@@ -142,6 +146,7 @@ export function useSpeech() {
     setError("");
     if (mode === "speech") {
       if (!recRef.current) return;
+      wantRef.current = true;
       try { recRef.current.start(); setListening(true); } catch { /* já iniciado */ }
       return;
     }
@@ -169,6 +174,7 @@ export function useSpeech() {
     return new Promise((resolve) => {
       resolverRef.current = resolve;
       if (mode === "speech") {
+        wantRef.current = false; // parada explícita: não reinicia
         try { recRef.current?.stop(); } catch { resolve(segmentRef.current.trim()); resolverRef.current = null; }
         setListening(false);
       } else if (mode === "recorder") {

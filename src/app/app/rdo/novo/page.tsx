@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { aiFromQuestions } from "@/lib/ai/client";
 import { AI_QUESTION_KEYS } from "@/lib/ai/prompts";
 import { emptyDraft, applyAiResult, type RdoDraft } from "@/lib/rdo";
+import { loadProgress, saveProgress, clearProgress } from "@/lib/rdoProgress";
 import { useSpeech } from "@/lib/useSpeech";
 import { RdoEditor } from "@/components/rdo-editor";
 import { PageHeader } from "@/components/page";
@@ -47,12 +48,23 @@ function NovoRdoInner() {
 
   const activeProjects = projects.filter((p) => !["entregue", "cancelada"].includes(p.status));
   const initialProject = params.get("obra") || activeProjects[0]?.id || projects[0]?.id || "";
-  const [projectId, setProjectId] = React.useState(initialProject);
-  const [stage, setStage] = React.useState<Stage>("intro");
-  const [draft, setDraft] = React.useState<RdoDraft | null>(null);
+
+  // Retoma o RDO em andamento (sobrevive a refresh/troca de tela).
+  const [saved] = React.useState(() => loadProgress());
+  const [projectId, setProjectId] = React.useState(saved?.projectId || initialProject);
+  const [stage, setStage] = React.useState<Stage>(saved?.stage ?? "intro");
+  const [draft, setDraft] = React.useState<RdoDraft | null>(saved?.draft ?? null);
+  const [answers, setAnswers] = React.useState<Record<string, string>>(saved?.answers ?? {});
+  const [idx, setIdx] = React.useState(saved?.idx ?? 0);
 
   const project = projects.find((p) => p.id === projectId);
   const teamNames = team.filter((t) => t.projectId === projectId || !t.projectId).map((t) => t.name);
+  const answeredCount = QUESTIONS.filter((q) => (answers[q.key] || "").trim()).length;
+
+  // Persiste o progresso enquanto cria/revisa; some no modo intro.
+  React.useEffect(() => {
+    if (stage === "creating" || stage === "review") saveProgress({ stage, projectId, idx, answers, draft });
+  }, [stage, projectId, idx, answers, draft]);
 
   function start() {
     if (!projectId) { show("Selecione uma obra primeiro."); return; }
@@ -60,9 +72,15 @@ function NovoRdoInner() {
     setStage("creating");
   }
 
+  function discard() {
+    clearProgress();
+    setAnswers({}); setIdx(0); setDraft(null); setStage("intro");
+  }
+
   function save() {
     if (!draft) return;
     const id = addReport(draft);
+    clearProgress();
     show("RDO salvo com sucesso!");
     setTimeout(() => router.push(`/app/rdo/${id}`), 500);
   }
@@ -74,6 +92,7 @@ function NovoRdoInner() {
         projectName={project?.name || "Obra"}
         supervisor={project?.supervisor || user.name}
         projectId={projectId}
+        answers={answers} setAnswers={setAnswers} idx={idx} setIdx={setIdx}
         onCancel={() => setStage("intro")}
         onDone={(d) => { setDraft(d); setStage("review"); }}
       />
@@ -105,6 +124,19 @@ function NovoRdoInner() {
     <div>
       {node}
       <PageHeader title="Criar RDO" description="Diário de obra inteligente" backHref="/app" />
+
+      {(answeredCount > 0 || draft) && (
+        <Card className="p-4 mb-4 border-brand/40 bg-brand-soft flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="font-semibold text-sm">Você tem um RDO em andamento</p>
+            <p className="text-xs text-muted">{answeredCount}/{QUESTIONS.length} perguntas respondidas{draft ? " • pronto para revisão" : ""}.</p>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={discard}>Descartar</Button>
+            <Button size="sm" onClick={() => setStage(draft ? "review" : "creating")}>Continuar</Button>
+          </div>
+        </Card>
+      )}
 
       {projects.length > 0 && !canAddRdo ? (
         <UpgradeGate
@@ -160,13 +192,13 @@ function NovoRdoInner() {
 // =====================================================================
 //  Experiência imersiva (tela cheia) de criação por perguntas + IA
 // =====================================================================
-function ImmersiveCreator({ projectId, projectName, supervisor, onCancel, onDone }: {
+function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnswers, idx, setIdx, onCancel, onDone }: {
   projectId: string; projectName: string; supervisor: string;
+  answers: Record<string, string>; setAnswers: (a: Record<string, string>) => void;
+  idx: number; setIdx: (i: number) => void;
   onCancel: () => void; onDone: (d: RdoDraft) => void;
 }) {
   const speech = useSpeech();
-  const [idx, setIdx] = React.useState(0);
-  const [answers, setAnswers] = React.useState<Record<string, string>>({});
   const [busy, setBusy] = React.useState(false);
   const current = QUESTIONS[idx];
   const total = QUESTIONS.length;
