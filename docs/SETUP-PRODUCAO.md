@@ -31,7 +31,8 @@ ambiente não estiverem configuradas. Ao preencher as chaves, ele entra em
 1. Crie um projeto em https://supabase.com (região São Paulo).
 2. **SQL Editor** → cole `supabase/migrations/0001_init.sql` → **Run**. Isso cria
    o schema, RLS, triggers de cadastro e os buckets de Storage. Em seguida rode
-   `supabase/migrations/0002_invites.sql` (convites de equipe/contratante).
+   `supabase/migrations/0002_invites.sql` (convites de equipe/contratante) e
+   `supabase/migrations/0003_client_visibility.sql` (visibilidade do RDO para o contratante).
 3. **Project Settings → API**: copie `Project URL`, `anon public key` e
    `service_role key`.
 4. **Authentication → Providers**:
@@ -106,6 +107,14 @@ Depois faça **Redeploy**.
   Supabase passam por uma **fila (outbox)**: sem rede ou em erro, ficam na fila e são
   reenviadas ao reconectar (evento `online` + retry a cada 20s). Um indicador mostra
   "offline / sincronizando / N na fila".
+- **Visibilidade do contratante:** o RDO guarda tudo internamente, mas o contratante
+  (role `client`) vê só o subconjunto compartilhável — na tela e no PDF/compartilhamento.
+  A política é por empresa (`companies.client_visibility`, editável em **Configurações →
+  "O que o contratante enxerga"**) com padrão seguro de fábrica: escondem-se equipe/presença,
+  pendências/observações internas e gastos/materiais faltantes. Implementado em
+  `src/lib/visibility.ts` (`getClientVisibility`) e aplicado na tela do RDO, no
+  `generateRdoPdf(..., visibility?)` e no relatório final. *Obs.: o filtro é de apresentação
+  (app local-first); filtragem server-side fica como evolução futura.*
 - **Convites & acessos:** owner/admin geram um link em **Equipe & acessos**
   (`/app/acessos`). O convidado abre `/convite/<token>`, entra/cria conta e o
   `accept_invite()` (SECURITY DEFINER) move o perfil para a empresa com o papel

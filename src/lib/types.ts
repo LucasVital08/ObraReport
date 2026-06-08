@@ -33,6 +33,16 @@ export interface User {
 
 export type PlanId = "free" | "basico" | "profissional" | "empresa";
 
+// Visibilidade do RDO para o contratante (papel "client"). Cada flag = a seção
+// é COMPARTILHADA com o contratante. O time interno sempre vê tudo. O padrão
+// (DEFAULT_CLIENT_VISIBILITY em src/lib/visibility.ts) esconde o que é sensível.
+export interface ClientVisibility {
+  equipe: boolean; // Equipe e presença (faltas/atrasos)
+  ocorrencias: boolean; // Ocorrências, impedimentos e riscos
+  pendencias: boolean; // Pendências + observações internas (notes)
+  gastos: boolean; // Gastos + materiais/equipamentos solicitados (faltantes)
+}
+
 export interface Company {
   id: ID;
   name: string;
@@ -42,6 +52,7 @@ export interface Company {
   document?: string;
   city?: string;
   createdAt: string;
+  clientVisibility?: ClientVisibility;
 }
 
 export type ProjectStatus =

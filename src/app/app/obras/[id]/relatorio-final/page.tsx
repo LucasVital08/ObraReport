@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { buildFinalReport } from "@/lib/ai/engine";
 import { generateFinalPdf } from "@/lib/pdf";
+import { getClientVisibility } from "@/lib/visibility";
 import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Badge, EmptyState, useToast } from "@/components/ui";
 import { Timeline } from "@/components/timeline";
@@ -24,9 +25,16 @@ export default function RelatorioFinalPage() {
   // do seletor cria nova referência a cada render e causa loop (React #185).
   const reports = useStore((s) => s.reports).filter((r) => r.projectId === id);
   const saveFinalReport = useStore((s) => s.saveFinalReport);
+  const isClient = useStore((s) => s.user.role === "client");
 
+  // Para o contratante, gastos/ocorrências internas seguem a política da empresa
+  // (e os toggles ficam escondidos). Time interno controla livremente.
+  const vis = getClientVisibility(company);
   const [opts, setOpts] = React.useState({
-    includeExpenses: true, includeVideos: true, includeInternalOccurrences: true, onlySelectedPhotos: false,
+    includeExpenses: isClient ? vis.gastos : true,
+    includeVideos: true,
+    includeInternalOccurrences: isClient ? vis.ocorrencias : true,
+    onlySelectedPhotos: false,
   });
 
   const ai = React.useMemo(
@@ -137,9 +145,9 @@ export default function RelatorioFinalPage() {
             <Card className="p-5">
               <h3 className="font-semibold mb-3">Opções do relatório</h3>
               <div className="space-y-2">
-                <Toggle label="Incluir gastos" checked={opts.includeExpenses} onChange={(v) => setOpts({ ...opts, includeExpenses: v })} />
+                {!isClient && <Toggle label="Incluir gastos" checked={opts.includeExpenses} onChange={(v) => setOpts({ ...opts, includeExpenses: v })} />}
                 <Toggle label="Incluir vídeos" checked={opts.includeVideos} onChange={(v) => setOpts({ ...opts, includeVideos: v })} />
-                <Toggle label="Incluir ocorrências internas" checked={opts.includeInternalOccurrences} onChange={(v) => setOpts({ ...opts, includeInternalOccurrences: v })} />
+                {!isClient && <Toggle label="Incluir ocorrências internas" checked={opts.includeInternalOccurrences} onChange={(v) => setOpts({ ...opts, includeInternalOccurrences: v })} />}
                 <Toggle label="Apenas fotos selecionadas" checked={opts.onlySelectedPhotos} onChange={(v) => setOpts({ ...opts, onlySelectedPhotos: v })} />
               </div>
               <Button className="w-full mt-4" onClick={generate}><FileDown size={16} /> Gerar PDF completo</Button>

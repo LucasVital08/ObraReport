@@ -6,7 +6,8 @@ import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Field, Input, useToast, Badge } from "@/components/ui";
 import { ROLE_LABELS } from "@/lib/types";
-import { Building2, User, Palette, FileText, Moon, Sun, LogOut, Trash2, Shield, Database } from "lucide-react";
+import { getClientVisibility, CLIENT_VISIBILITY_SECTIONS } from "@/lib/visibility";
+import { Building2, User, Palette, FileText, Moon, Sun, LogOut, Trash2, Shield, Database, Eye } from "lucide-react";
 
 const COLORS = ["#f4720b", "#2563eb", "#16a34a", "#7c3aed", "#dc2626", "#0891b2"];
 
@@ -26,9 +27,17 @@ export default function ConfigPage() {
   const [city, setCity] = React.useState(company.city || "");
   const [template, setTemplate] = React.useState("detalhado");
 
+  const isManager = user.role === "owner" || user.role === "admin";
+  const vis = getClientVisibility(company);
+
   function saveCompany() {
     updateCompany({ name, city, logoText: name.slice(0, 3).toUpperCase() });
     show("Dados da empresa salvos!");
+  }
+
+  function toggleVis(key: keyof typeof vis) {
+    updateCompany({ clientVisibility: { ...vis, [key]: !vis[key] } });
+    show("Visibilidade do contratante atualizada.");
   }
 
   return (
@@ -84,6 +93,27 @@ export default function ConfigPage() {
             ))}
           </div>
         </Card>
+
+        {isManager && (
+          <Card className="lg:col-span-2">
+            <CardHeader title="O que o contratante enxerga" icon={<Eye size={18} />}
+              subtitle="Escolha quais seções do RDO o contratante vê — na tela e no PDF. O time interno sempre vê tudo." />
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {CLIENT_VISIBILITY_SECTIONS.map((s) => (
+                <button key={s.key} onClick={() => toggleVis(s.key)}
+                  className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-colors ${vis[s.key] ? "border-brand bg-brand-soft" : "border-border"}`}>
+                  <span className={`mt-0.5 h-5 w-9 shrink-0 rounded-full flex items-center px-0.5 transition-colors ${vis[s.key] ? "bg-brand justify-end" : "bg-black/15 dark:bg-white/20 justify-start"}`}>
+                    <span className="h-4 w-4 rounded-full bg-white" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{s.label}</span>
+                    <span className="block text-xs text-muted">{vis[s.key] ? "Visível ao contratante" : "Oculto do contratante"} — {s.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Card>
+        )}
 
         <Card className="lg:col-span-2">
           <CardHeader title="Privacidade e dados (LGPD)" icon={<Shield size={18} />} />

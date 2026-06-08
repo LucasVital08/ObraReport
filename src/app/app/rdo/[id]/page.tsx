@@ -11,6 +11,7 @@ import { RdoStatusBadge } from "@/components/status";
 import { Avatar } from "@/components/brand";
 import { evaluateCompleteness } from "@/lib/ai/engine";
 import { generateRdoPdf } from "@/lib/pdf";
+import { getClientVisibility } from "@/lib/visibility";
 import { formatBRL, formatDateBR, uid, nowISO } from "@/lib/utils";
 import { RDO_STATUS_LABELS, ROLE_LABELS, type RdoStatus, type Signature, type DailyReport } from "@/lib/types";
 import {
@@ -43,9 +44,18 @@ export default function RdoViewPage() {
   const teamNames = team.filter((t) => t.projectId === report.projectId || !t.projectId).map((t) => t.name);
   const completeness = evaluateCompleteness(report);
 
-  function downloadPdf() {
+  // Política de visibilidade do contratante. Para o time interno, vis não filtra
+  // (vê tudo). Para o contratante, esconde as seções sensíveis.
+  const vis = getClientVisibility(company);
+  const showOcc = !isClient || vis.ocorrencias;
+  const showPending = !isClient || vis.pendencias;
+  const occLines = showOcc ? [...report.occurrences, ...report.impediments] : [];
+  const pendingLines = showPending ? report.pending : [];
+
+  // PDF: versão do contratante (filtrada) quando for o cliente ou ao compartilhar.
+  function downloadPdf(forClient = isClient) {
     if (!project) return;
-    const doc = generateRdoPdf(report!, project, company);
+    const doc = generateRdoPdf(report!, project, company, forClient ? vis : undefined);
     doc.save(`RDO-${report!.number}-${project.name.slice(0, 20)}.pdf`);
     show("PDF gerado!");
   }
@@ -83,7 +93,7 @@ export default function RdoViewPage() {
                 <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}><Share2 size={15} /> Compartilhar</Button>
               </>
             )}
-            <Button size="sm" onClick={downloadPdf}><FileDown size={15} /> PDF</Button>
+            <Button size="sm" onClick={() => downloadPdf()}><FileDown size={15} /> PDF</Button>
           </div>
         }
       />
@@ -104,7 +114,7 @@ export default function RdoViewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
-          {report.rawInput && (
+          {report.rawInput && !isClient && (
             <Card className="p-4 bg-brand-soft border-brand/20">
               <p className="text-xs font-semibold uppercase tracking-wide text-brand-dark flex items-center gap-1.5 mb-1"><Sparkles size={12} /> Relato original (voz/texto)</p>
               <p className="text-sm text-foreground/80 italic">“{report.rawInput}”</p>
@@ -116,15 +126,17 @@ export default function RdoViewPage() {
             <div className="p-4 text-sm">{report.executiveSummary || <span className="text-muted">Sem resumo.</span>}</div>
           </Card>
 
-          <Card>
-            <CardHeader title="Equipe presente" icon={<Users size={18} />} />
-            <div className="p-4 flex flex-wrap gap-2">
-              {report.team.length === 0 ? <span className="text-muted text-sm">Nenhum membro.</span> :
-                report.team.map((t, i) => (
-                  <Badge key={i} tone={t.present ? "success" : "neutral"}>{t.name}{t.role ? ` • ${t.role}` : ""}</Badge>
-                ))}
-            </div>
-          </Card>
+          {(!isClient || vis.equipe) && (
+            <Card>
+              <CardHeader title="Equipe presente" icon={<Users size={18} />} />
+              <div className="p-4 flex flex-wrap gap-2">
+                {report.team.length === 0 ? <span className="text-muted text-sm">Nenhum membro.</span> :
+                  report.team.map((t, i) => (
+                    <Badge key={i} tone={t.present ? "success" : "neutral"}>{t.name}{t.role ? ` • ${t.role}` : ""}</Badge>
+                  ))}
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Atividades executadas" icon={<Hammer size={18} />} />
@@ -151,11 +163,11 @@ export default function RdoViewPage() {
             </Card>
           )}
 
-          {(report.occurrences.length > 0 || report.impediments.length > 0 || report.clientRequests.length > 0) && (
+          {(occLines.length > 0 || report.clientRequests.length > 0) && (
             <Card>
               <CardHeader title="Ocorrências e solicitações" icon={<AlertTriangle size={18} />} />
               <div className="p-4 space-y-1.5 text-sm">
-                {[...report.occurrences, ...report.impediments].map((o, i) => <p key={i} className="flex gap-2"><span className="text-danger">•</span> {o}</p>)}
+                {occLines.map((o, i) => <p key={i} className="flex gap-2"><span className="text-danger">•</span> {o}</p>)}
                 {report.clientRequests.map((o, i) => <p key={`c${i}`} className="flex gap-2"><span className="text-info">•</span> Cliente: {o}</p>)}
               </div>
             </Card>
@@ -163,7 +175,7 @@ export default function RdoViewPage() {
 
           <MediaGallery media={report.media} />
 
-          {report.expenses.length > 0 && (
+          {report.expenses.length > 0 && (!isClient || vis.gastos) && (
             <Card>
               <CardHeader title="Gastos do dia" icon={<Wallet size={18} />} />
               <div className="divide-y divide-border">
@@ -177,11 +189,11 @@ export default function RdoViewPage() {
             </Card>
           )}
 
-          {(report.pending.length > 0 || report.nextDayPlan.length > 0) && (
+          {(pendingLines.length > 0 || report.nextDayPlan.length > 0) && (
             <Card>
               <CardHeader title="Pendências e próximos passos" icon={<ListTodo size={18} />} />
               <div className="p-4 space-y-1.5 text-sm">
-                {[...report.pending, ...report.nextDayPlan].map((p, i) => <p key={i} className="flex gap-2"><span className="text-brand">→</span> {p}</p>)}
+                {[...pendingLines, ...report.nextDayPlan].map((p, i) => <p key={i} className="flex gap-2"><span className="text-brand">→</span> {p}</p>)}
               </div>
             </Card>
           )}
@@ -244,7 +256,7 @@ export default function RdoViewPage() {
         }} />
 
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} report={report} project={project?.name || ""}
-        onPdf={downloadPdf} onShared={() => { updateReport(report.id, { status: report.status === "assinado" || report.status === "aprovado" ? report.status : "enviado" }); show("Marcado como enviado."); }} />
+        onPdf={() => downloadPdf(true)} onShared={() => { updateReport(report.id, { status: report.status === "assinado" || report.status === "aprovado" ? report.status : "enviado" }); show("Marcado como enviado."); }} />
     </div>
   );
 }

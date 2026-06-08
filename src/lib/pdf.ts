@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { AiFinalResult, Company, DailyReport, Project } from "@/lib/types";
+import type { AiFinalResult, ClientVisibility, Company, DailyReport, Project } from "@/lib/types";
 import { formatBRL, formatDateBR } from "@/lib/utils";
 
 const BRAND: [number, number, number] = [244, 114, 11];
@@ -284,7 +284,10 @@ function signatures(ctx: Ctx, report: DailyReport) {
 }
 
 // ===== RDO diário =====
-export function generateRdoPdf(report: DailyReport, project: Project, company: Company): jsPDF {
+// `visibility` indefinido = PDF interno completo. Quando informado (versão do
+// contratante), as seções sensíveis são omitidas conforme a política da empresa.
+export function generateRdoPdf(report: DailyReport, project: Project, company: Company, visibility?: ClientVisibility): jsPDF {
+  const v = visibility;
   const ctx = newDoc(company);
   const { doc } = ctx;
 
@@ -345,7 +348,7 @@ export function generateRdoPdf(report: DailyReport, project: Project, company: C
   numberedSection(ctx, "Resumo executivo");
   paragraph(ctx, report.executiveSummary || "Sem resumo registrado.");
 
-  if (report.team.some((t) => t.present)) {
+  if ((!v || v.equipe) && report.team.some((t) => t.present)) {
     numberedSection(ctx, "Equipe / efetivo");
     bullets(ctx, report.team.filter((t) => t.present).map((t) => `${t.name}${t.role ? ` — ${t.role}` : ""}`));
   }
@@ -361,8 +364,15 @@ export function generateRdoPdf(report: DailyReport, project: Project, company: C
     ]);
   }
 
-  numberedSection(ctx, "Ocorrências e observações técnicas");
-  bullets(ctx, [...report.occurrences, ...report.impediments, ...(report.notes ? [report.notes] : [])]);
+  // Ocorrências/impedimentos (flag "ocorrencias") + observações internas (flag "pendencias").
+  const occItems = [
+    ...((!v || v.ocorrencias) ? [...report.occurrences, ...report.impediments] : []),
+    ...((!v || v.pendencias) && report.notes ? [report.notes] : []),
+  ];
+  if (!v || occItems.length) {
+    numberedSection(ctx, "Ocorrências e observações técnicas");
+    bullets(ctx, occItems);
+  }
 
   // Solicitações e providências (estruturado, com prioridade)
   const provs = report.providencias && report.providencias.length
@@ -373,15 +383,20 @@ export function generateRdoPdf(report: DailyReport, project: Project, company: C
     providenciasTable(ctx, provs);
   }
 
-  if (report.expenses.length) {
+  if ((!v || v.gastos) && report.expenses.length) {
     numberedSection(ctx, "Gastos");
     table(ctx, ["Categoria", "Descrição", "Valor", "Responsável"],
       report.expenses.map((e) => [e.category, e.description, formatBRL(e.amount), e.responsible]));
   }
 
-  const nextLabel = report.nextDayPlan.length ? "Programação para o próximo dia" : "Pendências e próximos passos";
-  numberedSection(ctx, nextLabel);
-  bullets(ctx, report.nextDayPlan.length ? report.nextDayPlan : [...report.pending]);
+  // Próximo dia (sempre compartilhável) tem prioridade; senão pendências (flag "pendencias").
+  if (report.nextDayPlan.length) {
+    numberedSection(ctx, "Programação para o próximo dia");
+    bullets(ctx, report.nextDayPlan);
+  } else if (!v || v.pendencias) {
+    numberedSection(ctx, "Pendências e próximos passos");
+    bullets(ctx, [...report.pending]);
+  }
 
   numberedSection(ctx, "Registro fotográfico");
   photoGrid(ctx, report.media);
