@@ -48,6 +48,32 @@ async function compressImage(file: File, maxDim = 1600, quality = 0.72): Promise
   }
 }
 
+// Recomprime uma imagem que JÁ está em base64 (data URL), encolhendo no lugar.
+// Usado para liberar espaço de fotos antigas grandes guardadas no aparelho.
+export async function recompressDataUrl(dataUrl: string, maxDim = 1600, quality = 0.72): Promise<string> {
+  if (typeof document === "undefined" || !dataUrl.startsWith("data:image")) return dataUrl;
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = reject;
+      im.src = dataUrl;
+    });
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return dataUrl;
+    ctx.drawImage(img, 0, 0, w, h);
+    const out = canvas.toDataURL("image/jpeg", quality);
+    return out.length < dataUrl.length ? out : dataUrl;
+  } catch {
+    return dataUrl;
+  }
+}
+
 // Sobe um arquivo para o Supabase Storage e retorna a URL pública.
 // Imagens são comprimidas antes (Storage ou base64). Em modo local/demo (sem
 // Supabase ou sem empresa), retorna um data URL base64 — app funciona offline.

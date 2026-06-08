@@ -7,7 +7,9 @@ import { PageHeader } from "@/components/page";
 import { Card, CardHeader, Button, Field, Input, useToast, Badge } from "@/components/ui";
 import { ROLE_LABELS } from "@/lib/types";
 import { getClientVisibility, CLIENT_VISIBILITY_SECTIONS } from "@/lib/visibility";
-import { Building2, User, Palette, FileText, Moon, Sun, LogOut, Trash2, Shield, Database, Eye } from "lucide-react";
+import { recompressDataUrl } from "@/lib/data/storage";
+import { loadProgress, saveProgress } from "@/lib/rdoProgress";
+import { Building2, User, Palette, FileText, Moon, Sun, LogOut, Trash2, Shield, Database, Eye, ImageDown } from "lucide-react";
 
 const COLORS = ["#f4720b", "#2563eb", "#16a34a", "#7c3aed", "#dc2626", "#0891b2"];
 
@@ -22,9 +24,47 @@ export default function ConfigPage() {
   const logout = useStore((s) => s.logout);
   const resetAll = useStore((s) => s.resetAll);
   const loadDemo = useStore((s) => s.loadDemo);
+  const hydrateData = useStore((s) => s.hydrateData);
 
   const [name, setName] = React.useState(company.name);
   const [city, setCity] = React.useState(company.city || "");
+  const [optimizing, setOptimizing] = React.useState(false);
+
+  // Recomprime fotos antigas (já em base64) no lugar e libera espaço, sem perder
+  // nada — inclui o RDO em andamento. Em produção (fotos em URL) nada muda.
+  async function optimizeSpace() {
+    setOptimizing(true);
+    try {
+      const lsSize = () => ["obrareport-ia-store", "obrareport-rdo-progress-v1"]
+        .reduce((n, k) => n + (localStorage.getItem(k)?.length || 0), 0);
+      const before = lsSize();
+
+      const recompMedia = (media: { dataUrl?: string }[] | undefined) =>
+        Promise.all((media || []).map(async (m) =>
+          m.dataUrl && m.dataUrl.startsWith("data:image") ? { ...m, dataUrl: await recompressDataUrl(m.dataUrl) } : m));
+
+      const { reports, documents } = useStore.getState();
+      const newReports = await Promise.all(reports.map(async (r) => ({ ...r, media: await recompMedia(r.media) })));
+      const newDocs = await Promise.all((documents ?? []).map(async (d) =>
+        d.dataUrl && d.dataUrl.startsWith("data:image") ? { ...d, dataUrl: await recompressDataUrl(d.dataUrl) } : d));
+      hydrateData({ reports: newReports as typeof reports, documents: newDocs as typeof documents });
+
+      const prog = loadProgress();
+      if (prog?.draft) {
+        const media = await recompMedia(prog.draft.media);
+        saveProgress({ ...prog, draft: { ...prog.draft, media: media as typeof prog.draft.media } });
+      }
+
+      setTimeout(() => {
+        const freed = Math.round((before - lsSize()) / 1024);
+        show(freed > 0 ? `Espaço liberado: ~${freed} KB.` : "As fotos já estavam otimizadas.");
+        setOptimizing(false);
+      }, 80);
+    } catch {
+      show("Não foi possível otimizar agora.");
+      setOptimizing(false);
+    }
+  }
   const [template, setTemplate] = React.useState("detalhado");
 
   const isManager = user.role === "owner" || user.role === "admin";
@@ -119,7 +159,9 @@ export default function ConfigPage() {
           <CardHeader title="Privacidade e dados (LGPD)" icon={<Shield size={18} />} />
           <div className="p-4 space-y-3 text-sm text-muted">
             <p>Seus dados ficam isolados por empresa e armazenados localmente neste dispositivo nesta versão de demonstração. Você pode recarregar os dados de exemplo ou excluir tudo.</p>
+            <p>Fotos antigas grandes podem ocupar bastante espaço no aparelho. Use “Otimizar fotos” para recomprimi-las e liberar memória sem perder nenhuma foto.</p>
             <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" onClick={optimizeSpace} disabled={optimizing}><ImageDown size={16} /> {optimizing ? "Otimizando…" : "Otimizar fotos e liberar espaço"}</Button>
               <Button variant="outline" onClick={() => { loadDemo(); show("Dados de demonstração recarregados!"); }}><Database size={16} /> Recarregar dados demo</Button>
               <Button variant="ghost" className="text-danger" onClick={() => { if (confirm("Excluir TODOS os dados? Esta ação não pode ser desfeita.")) { resetAll(); router.push("/login"); } }}><Trash2 size={16} /> Excluir todos os dados</Button>
             </div>
