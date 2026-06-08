@@ -9,6 +9,7 @@ import { useDataSync } from "@/lib/data/useDataSync";
 import { isSupabaseEnabled } from "@/lib/supabase/config";
 import { signOutSupabase } from "@/lib/supabase/auth";
 import { Logo, Avatar } from "@/components/brand";
+import { PwaLayer } from "@/components/pwa";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/types";
 import {
@@ -144,6 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex">
+      <PwaLayer />
       {/* Sidebar desktop */}
       <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-surface fixed inset-y-0 left-0 z-30">
         <div className="p-4 border-b border-border">

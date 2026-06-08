@@ -19,7 +19,7 @@ ambiente não estiverem configuradas. Ao preencher as chaves, ele entra em
 | **4. Storage de mídia** | Upload real de fotos/vídeos e documentos para o Supabase Storage (em vez de base64) | ✅ feito |
 | **5. Cobrança (Mercado Pago)** | Assinatura recorrente, checkout, webhook, e **limites de plano aplicados** (RDOs/mês, obras, usuários) | ✅ feito |
 | **6. Voz robusta (Whisper)** | Gravação de áudio + transcrição (Whisper/Groq/Gemini) com fallback automático no iPhone/Safari | ✅ feito |
-| **7. Offline-first + sync** | Fila local de alterações e sincronização ao reconectar (PWA instalável) | a fazer |
+| **7. Offline-first + sync** | Fila local de alterações (outbox) reenviada ao reconectar + PWA instalável (service worker, abre offline) | ✅ feito |
 | **8. Convites & equipe** | Convidar membros e contratantes por e-mail/link, papéis e permissões | a fazer |
 | **9. Produção/qualidade** | Monitoramento (Sentry), rate-limit na IA, e-mails transacionais, LGPD (exportar/excluir dados), termos | a fazer |
 
@@ -101,3 +101,10 @@ Depois faça **Redeploy**.
 - **Cadastro:** um trigger cria empresa + perfil + assinatura (trial 14 dias) no
   primeiro acesso; convites passam `company_id`/`role` nos metadados.
 - **Storage:** arquivos no caminho `"<company_id>/..."`, com política de acesso por empresa.
+- **Offline-first:** o app sempre grava local (Zustand/localStorage). As escritas no
+  Supabase passam por uma **fila (outbox)**: sem rede ou em erro, ficam na fila e são
+  reenviadas ao reconectar (evento `online` + retry a cada 20s). Um indicador mostra
+  "offline / sincronizando / N na fila".
+- **PWA instalável:** `public/manifest.webmanifest` + service worker (`public/sw.js`,
+  registrado em `PwaLayer`). Estáticos do Next em cache-first; navegação em
+  network-first com fallback ao cache (abre offline); **API/auth nunca são cacheadas**.
