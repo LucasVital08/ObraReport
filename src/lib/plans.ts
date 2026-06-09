@@ -90,6 +90,12 @@ export const PLANS: PlanInfo[] = [
 ];
 
 // ---- Limites por plano (cobrança / gating) ----
+// INTERRUPTOR GERAL: enquanto false, a plataforma fica ABERTA — todos usam sem
+// restrição (limites adormecidos, mas o código/planos seguem prontos). Para
+// ATIVAR a cobrança: NEXT_PUBLIC_PLANS_ENFORCED="true" no Vercel + Redeploy
+// (ou troque o default abaixo para true).
+export const PLANS_ENFORCED = process.env.NEXT_PUBLIC_PLANS_ENFORCED === "true";
+
 // Infinity = ilimitado. "obras" conta obras ativas (não concluídas/entregues/
 // canceladas). "rdosPerMonth" conta RDOs criados no mês corrente.
 export interface PlanLimits {

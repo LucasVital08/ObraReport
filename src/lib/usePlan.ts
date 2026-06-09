@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useStore } from "@/lib/store";
-import { limitsFor, type PlanLimits } from "@/lib/plans";
+import { limitsFor, PLANS_ENFORCED, type PlanLimits } from "@/lib/plans";
 import type { PlanId, ProjectStatus } from "@/lib/types";
 
 // Estados que NÃO contam como "obra ativa" para fins de limite de plano.
@@ -33,6 +33,11 @@ export function usePlan(): PlanState {
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const rdosThisMonth = reports.filter((r) => (r.date || r.createdAt || "").startsWith(ym)).length;
+
+    // Plataforma aberta (testes): sem enforcement, tudo liberado e ilimitado.
+    if (!PLANS_ENFORCED) {
+      return { plan, limits, activeObras, rdosThisMonth, canAddObra: true, canAddRdo: true, aiEnabled: true, remainingRdos: Infinity };
+    }
 
     const remainingRdos = limits.rdosPerMonth - rdosThisMonth;
     return {

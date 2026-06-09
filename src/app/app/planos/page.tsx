@@ -4,7 +4,7 @@ import React from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
 import { Card, Button, Badge, useToast } from "@/components/ui";
-import { PLANS, planById, formatPlanPrice } from "@/lib/plans";
+import { PLANS, planById, formatPlanPrice, PLANS_ENFORCED } from "@/lib/plans";
 import { type PlanId } from "@/lib/types";
 import { CheckCircle2, Sparkles, Crown, Building2, Gift } from "lucide-react";
 
@@ -56,6 +56,13 @@ export default function PlanosPage() {
     <div>
       {node}
       <PageHeader title="Planos e assinatura" description="Escolha o plano ideal para sua operação" />
+
+      {!PLANS_ENFORCED && (
+        <Card className="p-4 mb-5 bg-success-soft border-success/30">
+          <p className="text-sm text-success font-medium">🎉 Fase de testes: acesso liberado!</p>
+          <p className="text-sm text-muted mt-0.5">Todos os recursos estão disponíveis sem restrição enquanto a plataforma está em testes. Os planos abaixo são uma prévia do que vai valer quando a cobrança for ativada.</p>
+        </Card>
+      )}
 
       <Card className="p-4 mb-5 flex items-center justify-between flex-wrap gap-3">
         <div>
