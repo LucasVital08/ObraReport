@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { createSeedData, type AppData } from "@/lib/seed";
+import { createSeedData, buildSampleShoppingVitoria, type AppData } from "@/lib/seed";
 import { nowISO, uid } from "@/lib/utils";
 
 // localStorage à prova de erros: se a cota estourar (ex.: muitas fotos em
@@ -44,6 +44,7 @@ interface State extends AppData {
   loadDemo: () => void;
   loadDemoClient: () => void;
   resetAll: () => void;
+  importSampleObra: () => boolean;
   completeOnboarding: () => void;
   setTheme: (t: "light" | "dark") => void;
   updateCompany: (patch: Partial<Company>) => void;
@@ -223,6 +224,25 @@ export const useStore = create<State>()(
           onboardingComplete: false,
           demoMode: false,
         })),
+      // Importa a obra de exemplo (Shopping Vitória) com os 17 RDOs na conta
+      // atual. Sincroniza com o Supabase quando habilitado. Evita duplicar.
+      importSampleObra: () => {
+        const s = useStore.getState();
+        if (s.projects.some((p) => p.name.startsWith("Shopping Vitória"))) return false;
+        const cid = s.user.companyId || CID;
+        const { project, reports, team } = buildSampleShoppingVitoria(cid);
+        set((st) => {
+          up(st, "projects", project);
+          reports.forEach((r) => up(st, "reports", r));
+          team.forEach((t) => up(st, "team_members", t));
+          return {
+            projects: [...st.projects, project],
+            reports: [...st.reports, ...reports],
+            team: [...st.team, ...team],
+          };
+        });
+        return true;
+      },
       completeOnboarding: () => set({ onboardingComplete: true }),
       setTheme: (theme) => set({ theme }),
       updateCompany: (patch) =>

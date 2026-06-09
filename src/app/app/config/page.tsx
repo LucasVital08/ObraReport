@@ -24,6 +24,7 @@ export default function ConfigPage() {
   const logout = useStore((s) => s.logout);
   const resetAll = useStore((s) => s.resetAll);
   const loadDemo = useStore((s) => s.loadDemo);
+  const importSampleObra = useStore((s) => s.importSampleObra);
   const hydrateData = useStore((s) => s.hydrateData);
 
   const [name, setName] = React.useState(company.name);
@@ -162,6 +163,11 @@ export default function ConfigPage() {
             <p>Fotos antigas grandes podem ocupar bastante espaço no aparelho. Use “Otimizar fotos” para recomprimi-las e liberar memória sem perder nenhuma foto.</p>
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={optimizeSpace} disabled={optimizing}><ImageDown size={16} /> {optimizing ? "Otimizando…" : "Otimizar fotos e liberar espaço"}</Button>
+              <Button variant="outline" onClick={() => {
+                const ok = importSampleObra();
+                show(ok ? "Obra Shopping Vitória importada com os 17 RDOs!" : "A obra Shopping Vitória já está na sua conta.");
+                if (ok) router.push("/app/obras");
+              }}><Building2 size={16} /> Importar obra Shopping Vitória (17 RDOs)</Button>
               <Button variant="outline" onClick={() => { loadDemo(); show("Dados de demonstração recarregados!"); }}><Database size={16} /> Recarregar dados demo</Button>
               <Button variant="ghost" className="text-danger" onClick={() => { if (confirm("Excluir TODOS os dados? Esta ação não pode ser desfeita.")) { resetAll(); router.push("/login"); } }}><Trash2 size={16} /> Excluir todos os dados</Button>
             </div>

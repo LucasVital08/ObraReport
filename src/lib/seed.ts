@@ -839,6 +839,38 @@ function buildDrywallReports(p: Project): DailyReport[] {
   return [dia1, dia3, dia5, dia10, dia17, ...projected].sort((a, b) => a.number - b.number);
 }
 
+// Monta a obra real do Shopping Vitória (projeto + 17 RDOs + equipe) para
+// IMPORTAR na conta atual (ids novos, vinculados ao companyId informado).
+export function buildSampleShoppingVitoria(companyId: string): { project: Project; reports: DailyReport[]; team: TeamMember[] } {
+  const project: Project = {
+    id: uid("prj"), companyId,
+    name: "Shopping Vitória — Reforma do forro e adequação arquitetônica (sancas iluminadas)",
+    client: "Shopping Vitória",
+    address: "Corredor central — Shopping Vitória, Vitória - ES",
+    technicalLead: "Responsável Técnico",
+    supervisor: "Lucas Vital",
+    startDate: "2026-05-05", expectedEndDate: "2026-06-10",
+    status: "em_andamento", budget: 320000,
+    description:
+      "Reforma do forro e adequação arquitetônica do corredor com implantação de sancas iluminadas embutidas, executada em horário noturno. Inclui remoção das quatro treliças metálicas, desmontagem do forro em drywall, abertura/adequação da estrutura superior, serralheria dos perfis e instalação das sancas.",
+    coverColor: "#2563eb", createdAt: new Date().toISOString(),
+  };
+  const reports = buildDrywallReports(project).map((r) => ({ ...r, id: uid("rdo"), companyId }));
+  const crew: [string, string][] = [
+    ["Lucas Vital", "Responsável / Supervisão operacional"],
+    ["Leone", "Drywall, serralheria e soldagem"],
+    ["Reginaldo", "Assistência operacional"],
+    ["Italo", "Apoio operacional"],
+    ["William", "Apoio operacional"],
+    ["Bruno", "Apoio operacional"],
+    ["Alan", "Encarregado (17º dia)"],
+  ];
+  const team: TeamMember[] = crew.map(([name, role], i) => ({
+    id: uid("tm"), companyId, name, role, phone: `27 99999-10${String(i + 1).padStart(2, "0")}`, active: true, projectId: project.id,
+  }));
+  return { project, reports, team };
+}
+
 /* Gerador sintético antigo desativado — substituído pelos RDOs reais acima.
 function _legacyDrywallUnused() {
   const days: DrywallDayLegacy[] = [
