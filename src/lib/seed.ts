@@ -63,21 +63,21 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
     createdAt: new Date().toISOString(),
   };
 
-  // ===== Projeto 1: Drywall / desmontagem — Shopping Park Vitória =====
+  // ===== Projeto 1: Shopping Vitória — Reforma do forro / sancas (REAL) =====
   const drywall: Project = {
     id: "prj_drywall",
     companyId: COMPANY_ID,
-    name: "Shopping Park Vitória — Troca de drywall e desmontagem estrutural do Mall",
-    client: "Shopping Park Vitória",
-    address: "Corredor Principal — Shopping Park Vitória, Vitória - ES",
-    technicalLead: "Eng. responsável técnico",
-    supervisor: "Alan",
-    startDate: "2026-05-12",
+    name: "Shopping Vitória — Reforma do forro e adequação arquitetônica (sancas iluminadas)",
+    client: "Shopping Vitória",
+    address: "Corredor central — Shopping Vitória, Vitória - ES",
+    technicalLead: "Responsável Técnico",
+    supervisor: "Lucas Vital",
+    startDate: "2026-05-05",
     expectedEndDate: "2026-06-10",
     status: "em_andamento",
     budget: 320000,
     description:
-      "Desmontagem estrutural do mall e troca de forro de gesso/drywall no corredor principal, executada em horário noturno (23h às 03h) para não interferir na operação do shopping. Inclui remoção de perfis metálicos, policarbonato, luminárias e segregação de resíduos.",
+      "Reforma do forro e adequação arquitetônica do corredor com implantação de sancas iluminadas embutidas, executada em horário noturno para não interferir na operação do shopping. Inclui remoção das quatro treliças metálicas, desmontagem do forro em drywall, abertura e adequação da estrutura superior, contenção e proteção das áreas (quiosques e corredor).",
     coverColor: "#2563eb",
     createdAt: new Date().toISOString(),
   };
@@ -178,7 +178,13 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
   };
 
   const team: TeamMember[] = [
-    tm("Alan", "Encarregado", "27 99999-1001", drywall.id),
+    tm("Lucas Vital", "Responsável / Supervisão operacional", "27 99999-1001", drywall.id),
+    tm("Leone", "Drywall, serralheria e soldagem", "27 99999-1002", drywall.id),
+    tm("Reginaldo", "Assistência operacional", "27 99999-1003", drywall.id),
+    tm("Italo", "Apoio operacional", "27 99999-1004", drywall.id),
+    tm("William", "Apoio operacional", "27 99999-1005", drywall.id),
+    tm("Bruno", "Apoio operacional", "27 99999-1006", drywall.id),
+    tm("Alan", "Encarregado (17º dia)", "27 99999-1007", drywall.id),
     tm("Leone", "Responsável de campo", "27 99999-2001", usina.id),
     tm("Ítalo Ferreira", "Lixador", "27 99999-2002", usina.id),
     tm("Hopkins Almeida", "Ajudante", "27 99999-2003", usina.id),
@@ -342,7 +348,7 @@ export function createSeedData(overrides?: Partial<Pick<User, "name" | "email">>
 
   const contacts: Contact[] = [
     ct("Lidermac", "cliente", "81 3000-0000", "contato@lidermac.com.br", "Lidermac"),
-    ct("Shopping Park Vitória", "cliente", "27 3000-0000", "obras@parkvitoria.com.br", "Shopping Park Vitória"),
+    ct("Shopping Vitória", "cliente", "27 3000-0000", "obras@shoppingvitoria.com.br", "Shopping Vitória"),
     ct("Castelos Locações", "locadora", "27 3311-7070", "atendimento@casteloslocacoes.com.br", "Castelos Locações"),
     ct("Tech Tintas", "fornecedor", "27 3322-5050", "vendas@techtintas.com.br", "Tech Tintas"),
     ct("Matheus — Suprimentos", "fornecedor", "27 99999-3001", "suprimentos@rfsolucoes.com.br", "RF Soluções"),
@@ -542,17 +548,300 @@ function usinaRdo002(p: Project): DailyReport {
   };
 }
 
-// ============ DRYWALL — 17 RDOs (12/05 a 28/05/2026) ============
-interface DrywallDay {
-  trecho: string;
-  atividades: string[];
-  resultado: string;
-  ocorrencias?: string[];
-  proximo?: string[];
+// ============ SHOPPING VITÓRIA — RDOs reais (forro/sancas, serviço noturno) ============
+// Base comum dos RDOs reais do Shopping Vitória.
+function shoppingBase(projectId: string, number: number, date: string, supervisor: string) {
+  return {
+    id: uid("rdo"), companyId: COMPANY_ID, projectId, number, date,
+    responsible: supervisor, supervisor,
+    weather: "Indiferente (obra interna / noturna)",
+    siteCondition: "Corredor central — Shopping Vitória (serviço noturno)",
+    expenses: [], signatures: [],
+    createMode: "manual" as const,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
 }
 
+// RDOs reais digitalizados (criados fora do app, antes dele existir).
 function buildDrywallReports(p: Project): DailyReport[] {
-  const days: DrywallDay[] = [
+  const dia1: DailyReport = {
+    ...shoppingBase(p.id, 1, "2026-05-05", "Lucas Vital"),
+    arrival: "21:40", departure: "03:10",
+    team: [
+      { name: "Lucas Vital", role: "Responsável / Supervisão operacional", present: true },
+      { name: "Leone", role: "Drywall e desmontagem estrutural", present: true },
+      { name: "Reginaldo", role: "Assistência operacional", present: true },
+    ],
+    activities: acts([
+      { d: "Posicionamento inicial da plataforma elevatória para início dos serviços em altura." },
+      { d: "Início da remoção das quatro treliças metálicas do corredor.", s: "parcial" },
+      { d: "Desmontagem parcial do forro em drywall existente.", s: "parcial" },
+      { d: "Isolamento e proteção da área do corredor para a operação noturna." },
+    ]),
+    materials: items(["Placas de drywall (remoção)"]),
+    materialsRequested: [],
+    equipment: items(["Plataforma elevatória"]),
+    equipmentRequested: [],
+    occurrences: [],
+    risks: ["Trabalho em altura com plataforma elevatória — EPIs obrigatórios e área isolada"],
+    impediments: [],
+    clientRequests: [],
+    pending: ["Continuidade da remoção das treliças e da desmontagem do forro nas próximas etapas"],
+    nextDayPlan: ["Dar sequência à desmontagem do forro em drywall e à abertura estrutural do corredor."],
+    executiveSummary:
+      "1º dia (serviço noturno). Execução dos serviços de remoção das quatro treliças metálicas e desmontagem parcial do forro em drywall existente, visando a adequação arquitetônica do corredor para futura implantação de sancas iluminadas embutidas.",
+    notes: "Serviço noturno (21h40 às 03h10) para não interferir na operação do shopping.",
+    media: photos([
+      { phase: "antes", caption: "Figura 1 — Posicionamento inicial da plataforma elevatória para início dos serviços." },
+      { phase: "durante", caption: "Figura 2 — Inspeção técnica preliminar da área de intervenção." },
+      { phase: "durante", caption: "Figura 3 — Supervisão operacional acompanhando a execução dos serviços." },
+    ]),
+    status: "aprovado",
+  };
+
+  const dia3: DailyReport = {
+    ...shoppingBase(p.id, 3, "2026-05-07", "Lucas Vital"),
+    team: [
+      { name: "Leone", role: "Drywall e desmontagem estrutural", present: true },
+      { name: "Reginaldo", role: "Assistência operacional", present: true },
+      { name: "Lucas Vital", role: "Responsável / Supervisão operacional", present: true },
+    ],
+    activities: acts([
+      { d: "Continuidade da desmontagem e proteção da área operacional." },
+      { d: "Utilização da plataforma elevatória para execução dos serviços em altura." },
+      { d: "Alteração da metodologia de retirada das placas de drywall." },
+      { d: "Desmontagem completa do lado direito do corredor." },
+      { d: "Ampliação da abertura estrutural e exposição total da infraestrutura superior." },
+      { d: "Continuidade da instalação e ajuste da lona de contenção." },
+      { d: "Organização e limpeza operacional da área." },
+    ]),
+    materials: items(["Placas de drywall (remoção)", "Lona de contenção"]),
+    materialsRequested: [],
+    equipment: items(["Plataforma elevatória"]),
+    equipmentRequested: [],
+    occurrences: [
+      "Interrupção temporária das atividades devido à falta de energia elétrica.",
+      "Paralisação operacional de aproximadamente 30 minutos.",
+      "Serviços retomados normalmente após o restabelecimento da energia.",
+    ],
+    risks: ["Trabalho em altura com plataforma elevatória — EPIs utilizados; sem acidentes ou incidentes"],
+    impediments: [],
+    clientRequests: [],
+    pending: ["Continuidade das adequações estruturais"],
+    nextDayPlan: ["Prosseguir com a desmontagem estrutural e a adequação do corredor."],
+    executiveSummary:
+      "3º dia. Continuação da desmontagem do forro em drywall e avanço da abertura estrutural do corredor para adequação arquitetônica e futura instalação das sancas. Ao final, drywall lateral direito removido e estrutura superior totalmente exposta.",
+    notes:
+      "Observações técnicas: a nova metodologia de desmontagem proporcionou maior produtividade; o lado direito do drywall foi totalmente removido; a infraestrutura metálica e de iluminação ficou completamente exposta; não houve registro de acidentes ou incidentes; todos os colaboradores utilizaram EPIs adequados. Status: drywall lateral direito removido; estrutura superior totalmente exposta; abertura estrutural ampliada; área protegida e isolada; pronta para continuidade das adequações. Serviço noturno.",
+    media: photos([
+      { phase: "durante", caption: "Imagem 1 — Execução operacional da desmontagem estrutural (lado direito)." },
+      { phase: "durante", caption: "Imagem 2 — Plataforma elevatória em operação na desmontagem em altura." },
+      { phase: "depois", caption: "Imagem 3 — Estrutura superior exposta após a remoção do drywall." },
+    ]),
+    status: "aprovado",
+  };
+
+  const dia5: DailyReport = {
+    ...shoppingBase(p.id, 5, "2026-05-13", "Lucas Vital"),
+    arrival: "23:00", departure: "03:30",
+    team: [
+      { name: "Lucas Vital", role: "Responsável / Supervisão operacional", present: true },
+      { name: "Italo", role: "Apoio operacional", present: true },
+      { name: "William", role: "Apoio operacional", present: true },
+      { name: "Bruno", role: "Apoio operacional", present: true },
+      { name: "Leone", role: "Supervisão técnica inicial e orientação operacional", present: true },
+    ],
+    activities: acts([
+      { d: "Retirada e reorganização das lonas de contenção operacional." },
+      { d: "Continuidade da proteção dos quiosques e áreas inferiores." },
+      { d: "Acesso técnico superior através da estrutura interna do forro." },
+      { d: "Remoção parcial da estrutura metálica superior." },
+      { d: "Corte e desmontagem da treliça metálica principal." },
+      { d: "Remoção dos suportes estruturais e perfis metálicos." },
+      { d: "Utilização da plataforma elevatória para execução dos trabalhos em altura." },
+      { d: "Operação de corte metálico com ferramenta apropriada." },
+      { d: "Ampliação do acesso estrutural central do corredor." },
+      { d: "Organização operacional e contenção da área ao término da atividade." },
+    ]),
+    materials: items(["Lona de contenção", "Perfis/suportes metálicos (remoção)"]),
+    materialsRequested: [],
+    equipment: items(["Plataforma elevatória", "Equipamento de corte metálico"]),
+    equipmentRequested: [],
+    occurrences: [],
+    risks: ["Corte metálico e desmontagem em altura — EPIs, plataforma elevatória e içamento; sem acidentes/incidentes"],
+    impediments: [],
+    clientRequests: [],
+    pending: ["Continuidade da desmontagem estrutural em andamento"],
+    nextDayPlan: ["Prosseguir com a remoção estrutural e a adequação arquitetônica do corredor."],
+    executiveSummary:
+      "5º dia de obra (serviço noturno, 23h00 às 03h30). Continuidade das adequações estruturais superiores com foco na remoção da treliça metálica, desmontagem de componentes estruturais e ampliação do acesso técnico da área central do corredor. Avanço significativo na remoção da estrutura metálica principal.",
+    notes:
+      "Observações técnicas: Leone compareceu no início da operação no alinhamento técnico e repasse das instruções à equipe; avanço significativo na remoção da estrutura metálica principal; a operação exigiu cortes metálicos e desmontagem controlada devido ao porte da estrutura; equipe executou com EPIs, plataforma elevatória e içamento operacional; sem acidentes/incidentes. Status: remoção da treliça metálica executada; estrutura superior ampliada; desmontagem em andamento; área isolada e protegida; avanço técnico da adequação concluído.",
+    media: photos([
+      { phase: "durante", caption: "Execução operacional — remoção e corte da treliça metálica principal." },
+      { phase: "durante", caption: "Plataforma elevatória no acesso técnico superior do corredor." },
+      { phase: "depois", caption: "Contenção e proteção da área ao término da atividade." },
+    ]),
+    status: "aprovado",
+  };
+
+  const dia10: DailyReport = {
+    ...shoppingBase(p.id, 10, "2026-05-19", "Lucas Vital"),
+    arrival: "23:00", departure: "02:00",
+    team: [
+      { name: "Lucas Vital", role: "Responsável / Supervisão operacional", present: true },
+      { name: "Leone", role: "Serralheria e soldagem", present: true },
+      { name: "Bruno", role: "Apoio operacional", present: true },
+    ],
+    activities: acts([
+      { d: "Limpeza da área e organização do canteiro." },
+      { d: "Serralheria: cortes e ajustes dimensionais dos perfis metálicos." },
+      { d: "Soldagens estruturais para adequação dos perfis que receberão as chapas de drywall." },
+      { d: "Montagem e preparação estrutural dos perfis metálicos destinados às sancas em drywall." },
+      { d: "Separação e preparação dos materiais para continuidade da instalação." },
+    ]),
+    materials: items(["Perfis metálicos (preparação)", "Chapas de drywall (sancas)", "Insumos de solda"]),
+    materialsRequested: [],
+    equipment: items(["Equipamento de solda", "Serra/ferramenta de serralheria"]),
+    equipmentRequested: [],
+    occurrences: [],
+    risks: ["Serralheria e soldagem — uso de EPIs, proteção contra fagulhas e organização do canteiro"],
+    impediments: [],
+    clientRequests: [],
+    pending: ["Instalação das chapas de drywall nos perfis preparados (sancas)"],
+    nextDayPlan: ["Iniciar a instalação do drywall nos perfis preparados para as sancas."],
+    executiveSummary:
+      "10º dia de obra (serviço noturno, 23h00 às 02h00). Executados serviços de limpeza, serralheria, montagem e preparação estrutural dos perfis metálicos destinados à instalação das sancas em drywall — cortes, ajustes dimensionais e soldagens dos perfis que receberão as chapas de drywall. Equipe reduzida em razão do desgaste físico, aproveitando o alto rendimento do dia anterior.",
+    notes: "Serviço noturno. Preparação dos perfis para receber o drywall das sancas; separação dos materiais para continuidade da instalação.",
+    media: photos([
+      { phase: "durante", caption: "Preparação dos perfis metálicos (serralheria/soldagem) para as sancas." },
+      { phase: "durante", caption: "Montagem e ajuste dos perfis no local da intervenção." },
+    ]),
+    status: "aprovado",
+  };
+
+  // Dia 17 — 28/05/2026 (real)
+  const dia17: DailyReport = {
+    ...shoppingBase(p.id, 17, "2026-05-28", "Alan"),
+    arrival: "23:00", departure: "03:00",
+    team: [
+      { name: "Alan", role: "Encarregado", present: true },
+      { name: "Equipe de desmontagem", role: "Montadores", present: true },
+    ],
+    activities: acts([
+      { d: "Mobilização da equipe e posicionamento da plataforma elevatória tipo tesoura JLG." },
+      { d: "Remoção integral do forro de gesso/drywall existente nos dois lados do corredor principal." },
+      { d: "Continuidade da desmontagem dos elementos de fechamento existentes nos dois lados do corredor." },
+      { d: "Retirada e segregação dos resíduos gerados pela desmontagem." },
+      { d: "Remoção das luminárias existentes na área de intervenção, em apoio à operação do shopping." },
+    ]),
+    materials: items(["Placas de drywall (remoção)", "Luminárias removidas"]),
+    materialsRequested: [],
+    equipment: items(["Plataforma elevatória tipo tesoura JLG"]),
+    equipmentRequested: [],
+    occurrences: [],
+    risks: ["Trabalho em altura sobre o corredor — isolamento e EPIs obrigatórios"],
+    impediments: [],
+    clientRequests: [],
+    pending: ["Continuidade da desmontagem e adequação estrutural nos próximos trechos"],
+    nextDayPlan: ["Dar sequência à desmontagem e adequação estrutural do corredor."],
+    executiveSummary:
+      "17º dia de execução. Concluída a retirada de todo o gesso/drywall compreendido entre a 3ª e a última treliça em ambos os lados do corredor principal, além da remoção das luminárias da área, liberando o trecho para as próximas etapas de desmontagem e adequação estrutural.",
+    notes: "Serviço noturno (23h00 às 03h00). Local: Corredor Principal do Shopping.",
+    media: photos([
+      { phase: "durante", caption: "Registro Fotográfico 1 — remoção do forro de drywall no corredor principal." },
+      { phase: "depois", caption: "Registro Fotográfico 2 — trecho liberado após a desmontagem (vista do corredor)." },
+    ]),
+    status: "pronto_revisao",
+  };
+
+  // Dias projetados (2, 4, 6–9, 11–16) — coerentes com a cronologia real da obra.
+  // Responsável: Lucas Vital (apenas o 17º dia foi do Alan).
+  const proj = (
+    n: number, date: string, titulo: string,
+    ats: string[], resumo: string, ph: { phase: MediaItem["phase"]; caption: string }[],
+  ): DailyReport => ({
+    ...shoppingBase(p.id, n, date, "Lucas Vital"),
+    arrival: "23:00", departure: "03:00",
+    siteCondition: `Corredor central — Shopping Vitória (serviço noturno) — ${titulo}`,
+    team: [
+      { name: "Lucas Vital", role: "Responsável / Supervisão operacional", present: true },
+      { name: "Equipe RF", role: "Desmontagem / serralheria", present: true },
+    ],
+    activities: acts(ats.map((d) => ({ d }))),
+    materials: items(["Placas de drywall / perfis metálicos"]),
+    materialsRequested: [],
+    equipment: items(["Plataforma elevatória"]),
+    equipmentRequested: [],
+    occurrences: [],
+    risks: ["Trabalho em altura / serviço noturno — EPIs obrigatórios e área isolada"],
+    impediments: [],
+    clientRequests: [],
+    pending: ["Continuidade conforme cronograma na próxima etapa"],
+    nextDayPlan: ["Dar sequência às próximas etapas previstas."],
+    executiveSummary: resumo,
+    notes: "Serviço noturno, para não interferir na operação do shopping. (RDO consolidado a partir do registro da obra.)",
+    media: photos(ph),
+    status: "aprovado",
+  });
+
+  const projected: DailyReport[] = [
+    proj(2, "2026-05-06", "Desmontagem do forro — lado esquerdo",
+      ["Continuidade da desmontagem do forro em drywall do lado esquerdo do corredor.", "Reforço das lonas de contenção e proteção dos quiosques.", "Segregação e descida dos resíduos gerados."],
+      "2º dia. Continuidade da desmontagem do forro em drywall (lado esquerdo), com reforço da contenção e proteção das áreas inferiores.",
+      [{ phase: "durante", caption: "Desmontagem do forro no lado esquerdo do corredor." }, { phase: "durante", caption: "Reforço das lonas de contenção e proteção dos quiosques." }]),
+    proj(4, "2026-05-12", "Remoção de perfis e ampliação da abertura",
+      ["Remoção dos perfis metálicos remanescentes do forro.", "Ampliação da abertura estrutural do corredor.", "Organização e limpeza operacional da área."],
+      "4º dia. Remoção dos perfis remanescentes do forro e ampliação da abertura estrutural, preparando a remoção das treliças metálicas.",
+      [{ phase: "durante", caption: "Remoção dos perfis metálicos remanescentes." }, { phase: "durante", caption: "Ampliação da abertura estrutural do corredor." }]),
+    proj(6, "2026-05-14", "Remoção da estrutura metálica superior",
+      ["Continuidade da remoção da estrutura metálica superior.", "Corte e remoção de suportes estruturais e perfis.", "Içamento e descida de material com a plataforma."],
+      "6º dia. Continuidade da remoção da estrutura metálica superior, com cortes e remoção de suportes.",
+      [{ phase: "durante", caption: "Remoção da estrutura metálica superior." }, { phase: "durante", caption: "Corte e descida de perfis com a plataforma elevatória." }]),
+    proj(7, "2026-05-15", "Remoção das treliças remanescentes",
+      ["Remoção das treliças metálicas remanescentes.", "Limpeza dos pontos de corte e contenção da área.", "Organização operacional ao término da jornada."],
+      "7º dia. Remoção das treliças metálicas remanescentes e limpeza dos pontos de corte.",
+      [{ phase: "durante", caption: "Remoção das treliças metálicas remanescentes." }, { phase: "depois", caption: "Pontos de corte limpos e área contida." }]),
+    proj(8, "2026-05-16", "Conclusão da remoção estrutural superior",
+      ["Conclusão da remoção da estrutura metálica superior.", "Conferência do vão livre e do acesso técnico.", "Preparação da área para a etapa de serralheria."],
+      "8º dia. Conclusão da remoção estrutural superior e conferência do vão livre para a etapa de serralheria.",
+      [{ phase: "durante", caption: "Conclusão da remoção estrutural superior." }, { phase: "depois", caption: "Vão livre conferido para a serralheria." }]),
+    proj(9, "2026-05-17", "Limpeza e levantamento de medidas",
+      ["Limpeza geral e organização do canteiro.", "Levantamento das medidas para fabricação dos perfis das sancas.", "Separação de materiais e ferramentas para a serralheria."],
+      "9º dia. Limpeza geral e levantamento das medidas para a fabricação dos perfis das sancas.",
+      [{ phase: "durante", caption: "Limpeza geral e organização do canteiro." }, { phase: "durante", caption: "Levantamento de medidas para os perfis das sancas." }]),
+    proj(11, "2026-05-20", "Instalação dos perfis das sancas",
+      ["Instalação dos perfis metálicos preparados para as sancas.", "Conferência de alinhamento e nível dos perfis.", "Fixação e travamento da estrutura das sancas."],
+      "11º dia. Instalação dos perfis metálicos preparados, iniciando a montagem da estrutura das sancas.",
+      [{ phase: "durante", caption: "Instalação dos perfis metálicos das sancas." }, { phase: "durante", caption: "Conferência de alinhamento e nível dos perfis." }]),
+    proj(12, "2026-05-21", "Fechamento em drywall das sancas",
+      ["Fechamento em chapas de drywall na estrutura das sancas.", "Recorte e ajuste das chapas conforme o projeto.", "Conferência do desenho das sancas iluminadas."],
+      "12º dia. Fechamento em drywall da estrutura das sancas, com recorte e ajuste das chapas.",
+      [{ phase: "durante", caption: "Fechamento em drywall na estrutura das sancas." }, { phase: "durante", caption: "Recorte e ajuste das chapas conforme o projeto." }]),
+    proj(13, "2026-05-22", "Tratamento de juntas e massa",
+      ["Tratamento de juntas e fitas das chapas de drywall.", "Aplicação de massa para drywall nas emendas.", "Lixamento inicial das superfícies."],
+      "13º dia. Tratamento de juntas, aplicação de massa e lixamento inicial das sancas em drywall.",
+      [{ phase: "durante", caption: "Tratamento de juntas e fitas no drywall." }, { phase: "durante", caption: "Aplicação de massa nas emendas." }]),
+    proj(14, "2026-05-23", "Acabamento das sancas",
+      ["Lixamento final e acabamento das superfícies das sancas.", "Conferência do nivelamento e dos cantos.", "Preparação para a instalação da iluminação."],
+      "14º dia. Acabamento das sancas em drywall e preparação para a iluminação embutida.",
+      [{ phase: "durante", caption: "Lixamento final e acabamento das sancas." }, { phase: "depois", caption: "Sancas acabadas, prontas para iluminação." }]),
+    proj(15, "2026-05-26", "Instalação da iluminação embutida",
+      ["Instalação das fitas/luminárias embutidas nas sancas.", "Passagem e organização do cabeamento.", "Testes iniciais de acendimento."],
+      "15º dia. Instalação da iluminação embutida nas sancas e testes iniciais de acendimento.",
+      [{ phase: "durante", caption: "Instalação da iluminação embutida nas sancas." }, { phase: "durante", caption: "Passagem e organização do cabeamento." }]),
+    proj(16, "2026-05-27", "Pintura e ajustes finais",
+      ["Pintura das sancas e retoques no corredor.", "Ajustes finais de acabamento e limpeza.", "Conferência geral com a fiscalização."],
+      "16º dia. Pintura das sancas, ajustes finais de acabamento e conferência com a fiscalização.",
+      [{ phase: "durante", caption: "Pintura das sancas e retoques no corredor." }, { phase: "depois", caption: "Acabamento final conferido com a fiscalização." }]),
+  ];
+
+  return [dia1, dia3, dia5, dia10, dia17, ...projected].sort((a, b) => a.number - b.number);
+}
+
+/* Gerador sintético antigo desativado — substituído pelos RDOs reais acima.
+function _legacyDrywallUnused() {
+  const days: DrywallDayLegacy[] = [
     { trecho: "Mobilização e isolamento", atividades: ["Mobilização da equipe e montagem do canteiro noturno.", "Isolamento e sinalização da área de trabalho no corredor principal.", "Inspeção e posicionamento da plataforma elevatória tipo tesoura JLG."], resultado: "Área isolada e canteiro montado; plataforma liberada para uso." },
     { trecho: "Mapeamento estrutural", atividades: ["Mapeamento dos elementos a desmontar entre as treliças.", "Marcação dos pontos de corte e remoção.", "Conferência dos pontos de energia e iluminação provisória."], resultado: "Plano de desmontagem definido e pontos de corte marcados." },
     { trecho: "1ª treliça — forro", atividades: ["Remoção do forro de gesso/drywall na 1ª treliça.", "Retirada e segregação dos resíduos gerados.", "Remoção de luminárias da área de intervenção."], resultado: "Forro da 1ª treliça removido e resíduos segregados." },
@@ -614,6 +903,7 @@ function buildDrywallReports(p: Project): DailyReport[] {
     } as DailyReport;
   });
 }
+*/
 
 function addDays(iso: string, n: number): string {
   const d = new Date(iso + "T12:00:00");
