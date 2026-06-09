@@ -1,24 +1,43 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/page";
 import { Card, Button, Modal, Field, Input, Select, Badge, EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/brand";
 import { type TeamMember } from "@/lib/types";
-import { Plus, Users, Phone, Mail, Trash2 } from "lucide-react";
+import { Plus, Users, Phone, Mail, Trash2, UserPlus } from "lucide-react";
 
 export default function EquipePage() {
   const team = useStore((s) => s.team);
   const projects = useStore((s) => s.projects);
   const addTeamMember = useStore((s) => s.addTeamMember);
   const deleteTeamMember = useStore((s) => s.deleteTeamMember);
+  const isManager = useStore((s) => s.user.role === "owner" || s.user.role === "admin");
   const [open, setOpen] = React.useState(false);
 
   return (
     <div>
-      <PageHeader title="Equipe" description="Colaboradores e funções"
-        action={<Button onClick={() => setOpen(true)}><Plus size={16} /> Adicionar</Button>} />
+      <PageHeader title="Equipe" description="Colaboradores da obra e gestores com acesso ao app"
+        action={
+          <div className="flex gap-2 flex-wrap">
+            {isManager && (
+              <Link href="/app/acessos"><Button variant="outline"><UserPlus size={16} /> Convidar gestor/usuário</Button></Link>
+            )}
+            <Button onClick={() => setOpen(true)}><Plus size={16} /> Adicionar</Button>
+          </div>
+        } />
+      {isManager && (
+        <Card className="p-3.5 mb-4 flex items-start gap-3 bg-brand-soft/50 border-brand/20">
+          <UserPlus size={18} className="text-brand-dark shrink-0 mt-0.5" />
+          <p className="text-sm text-muted">
+            <span className="font-medium text-foreground">Quer dar acesso a um gestor</span> (como o dono da empresa) que também vai
+            criar RDOs e ver as obras? Use <Link href="/app/acessos" className="text-brand-dark font-medium underline">Convidar gestor/usuário</Link> —
+            ele recebe um link, cria a conta na sua empresa e passa a acessar o app. O botão “Adicionar” aqui é só para registrar colaboradores da obra (sem login).
+          </p>
+        </Card>
+      )}
       {team.length === 0 ? (
         <Card><EmptyState icon={<Users size={40} />} title="Nenhum colaborador" action={<Button onClick={() => setOpen(true)}><Plus size={16} /> Adicionar membro</Button>} /></Card>
       ) : (

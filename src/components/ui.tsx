@@ -202,13 +202,13 @@ export function Tabs({ tabs, active, onChange }: {
   active: string; onChange: (id: string) => void;
 }) {
   return (
-    <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-border">
+    <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-border touch-pan-x overscroll-x-contain">
       {tabs.map((t) => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
           className={cn(
-            "px-3.5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors",
+            "shrink-0 px-3.5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors",
             active === t.id
               ? "border-brand text-brand"
               : "border-transparent text-muted hover:text-foreground",
