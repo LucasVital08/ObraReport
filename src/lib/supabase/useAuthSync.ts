@@ -37,6 +37,7 @@ export function useAuthSync(): { ready: boolean } {
             company: comp
               ? {
                   id: comp.id, name: comp.name, logoText: comp.logo_text || "OR",
+                  logoUrl: comp.logo_url || undefined,
                   brandColor: comp.brand_color || "#f4720b", plan: (comp.plan as PlanId) || "free",
                   city: comp.city || undefined, createdAt: comp.created_at,
                   clientVisibility: comp.client_visibility || undefined,

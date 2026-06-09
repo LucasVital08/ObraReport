@@ -47,6 +47,7 @@ export interface Company {
   id: ID;
   name: string;
   logoText: string; // iniciais para logo simulada
+  logoUrl?: string; // logo da empresa (data URL) — sai no PDF e no topo
   brandColor: string;
   plan: PlanId;
   document?: string;

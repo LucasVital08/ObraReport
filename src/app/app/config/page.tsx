@@ -9,7 +9,7 @@ import { ROLE_LABELS } from "@/lib/types";
 import { getClientVisibility, CLIENT_VISIBILITY_SECTIONS } from "@/lib/visibility";
 import { recompressDataUrl } from "@/lib/data/storage";
 import { loadProgress, saveProgress } from "@/lib/rdoProgress";
-import { Building2, User, Palette, FileText, Moon, Sun, LogOut, Trash2, Shield, Database, Eye, ImageDown } from "lucide-react";
+import { Building2, User, Palette, FileText, Moon, Sun, LogOut, Trash2, Shield, Database, Eye, ImageDown, Download } from "lucide-react";
 
 const COLORS = ["#f4720b", "#2563eb", "#16a34a", "#7c3aed", "#dc2626", "#0891b2"];
 
@@ -81,6 +81,56 @@ export default function ConfigPage() {
     show("Visibilidade do contratante atualizada.");
   }
 
+  // Exporta todos os dados da conta em JSON (direito de portabilidade — LGPD).
+  function exportData() {
+    const s = useStore.getState();
+    const dump = {
+      exportadoEm: new Date().toISOString(),
+      company: s.company,
+      user: { name: s.user.name, email: s.user.email, role: s.user.role },
+      projects: s.projects, reports: s.reports, tasks: s.tasks, team: s.team, timeCards: s.timeCards,
+      materials: s.materials, equipment: s.equipment, checklists: s.checklists, incidents: s.incidents,
+      expenses: s.expenses, contacts: s.contacts, finalReports: s.finalReports, documents: s.documents,
+    };
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `obrareport-dados-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    show("Dados exportados (JSON).");
+  }
+
+  // Upload do logo: redimensiona para ~240px e guarda como PNG (data URL).
+  const logoRef = React.useRef<HTMLInputElement>(null);
+  async function onLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const img = await new Promise<HTMLImageElement>((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = rej;
+        i.src = URL.createObjectURL(file);
+      });
+      const max = 240;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      const cx = cv.getContext("2d");
+      if (!cx) return;
+      cx.drawImage(img, 0, 0, w, h);
+      updateCompany({ logoUrl: cv.toDataURL("image/png") });
+      show("Logo atualizado!");
+    } catch {
+      show("Não foi possível carregar o logo.");
+    }
+  }
+
   return (
     <div>
       {node}
@@ -91,9 +141,20 @@ export default function ConfigPage() {
           <CardHeader title="Empresa" icon={<Building2 size={18} />} />
           <div className="p-4 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-white font-bold" style={{ background: company.brandColor }}>{company.logoText}</div>
+              {company.logoUrl ? (
+                <img src={company.logoUrl} alt="Logo" className="h-14 w-14 rounded-2xl object-contain bg-white border border-border" />
+              ) : (
+                <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-white font-bold" style={{ background: company.brandColor }}>{company.logoText}</div>
+              )}
               <div><p className="font-medium">{company.name}</p><Badge tone="brand" className="capitalize mt-0.5">Plano {company.plan}</Badge></div>
             </div>
+            <Field label="Logo da empresa" hint="Sai no cabeçalho do PDF do RDO e do relatório final.">
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => logoRef.current?.click()}><ImageDown size={16} /> {company.logoUrl ? "Trocar logo" : "Enviar logo"}</Button>
+                {company.logoUrl && <Button variant="ghost" className="text-danger" onClick={() => { updateCompany({ logoUrl: undefined }); show("Logo removido."); }}>Remover</Button>}
+                <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={onLogo} />
+              </div>
+            </Field>
             <Field label="Nome da empresa"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="Cidade / Estado"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
             <Field label="Cor principal">
@@ -162,6 +223,7 @@ export default function ConfigPage() {
             <p>Seus dados ficam isolados por empresa e armazenados localmente neste dispositivo nesta versão de demonstração. Você pode recarregar os dados de exemplo ou excluir tudo.</p>
             <p>Fotos antigas grandes podem ocupar bastante espaço no aparelho. Use “Otimizar fotos” para recomprimi-las e liberar memória sem perder nenhuma foto.</p>
             <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" onClick={exportData}><Download size={16} /> Exportar meus dados</Button>
               <Button variant="outline" onClick={optimizeSpace} disabled={optimizing}><ImageDown size={16} /> {optimizing ? "Otimizando…" : "Otimizar fotos e liberar espaço"}</Button>
               <Button variant="outline" onClick={() => {
                 const ok = importSampleObra();

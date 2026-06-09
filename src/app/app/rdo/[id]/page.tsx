@@ -65,6 +65,26 @@ export default function RdoViewPage() {
     show("PDF gerado!");
   }
 
+  // Compartilha o ARQUIVO PDF (WhatsApp, etc.) via Web Share API do celular.
+  // Sempre a versão do contratante. Sem suporte, cai no download.
+  async function sharePdf() {
+    if (!project) return;
+    show("Preparando PDF…");
+    const reportForPdf = await embedReportImages(report!);
+    const doc = generateRdoPdf(reportForPdf, project, company, vis);
+    const blob = doc.output("blob") as Blob;
+    const file = new File([blob], `RDO-${report!.number}-${project.name.slice(0, 20)}.pdf`, { type: "application/pdf" });
+    const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
+    if (nav.canShare && nav.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: `RDO #${report!.number}`, text: `RDO #${report!.number} — ${project.name}` });
+        return;
+      } catch { /* usuário cancelou ou falhou → cai no download */ }
+    }
+    doc.save(file.name);
+    show("PDF baixado (compartilhamento direto indisponível neste aparelho).");
+  }
+
   if (editing) {
     return (
       <div>
@@ -261,7 +281,7 @@ export default function RdoViewPage() {
         }} />
 
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} report={report} project={project?.name || ""}
-        onPdf={() => downloadPdf(true)} onShared={() => { updateReport(report.id, { status: report.status === "assinado" || report.status === "aprovado" ? report.status : "enviado" }); show("Marcado como enviado."); }} />
+        onPdf={() => downloadPdf(true)} onSharePdf={sharePdf} onShared={() => { updateReport(report.id, { status: report.status === "assinado" || report.status === "aprovado" ? report.status : "enviado" }); show("Marcado como enviado."); }} />
 
       <PdfChoiceModal open={pdfChoiceOpen} onClose={() => setPdfChoiceOpen(false)}
         onFull={() => downloadPdf(false)} onClient={() => downloadPdf(true)} hiddenLabels={hiddenLabels} />
@@ -426,14 +446,18 @@ function PdfChoiceModal({ open, onClose, onFull, onClient, hiddenLabels }: {
   );
 }
 
-function ShareModal({ open, onClose, report, project, onPdf, onShared }: {
-  open: boolean; onClose: () => void; report: { number: number; executiveSummary: string }; project: string; onPdf: () => void; onShared: () => void;
+function ShareModal({ open, onClose, report, project, onPdf, onSharePdf, onShared }: {
+  open: boolean; onClose: () => void; report: { number: number; executiveSummary: string }; project: string; onPdf: () => void; onSharePdf: () => void; onShared: () => void;
 }) {
   const text = `📋 *RDO #${report.number}* — ${project}\n\n${report.executiveSummary}\n\nGerado com ObraReport IA.`;
   const link = typeof window !== "undefined" ? window.location.href : "";
   return (
     <Modal open={open} onClose={onClose} title="Compartilhar relatório">
       <div className="space-y-2">
+        <button onClick={() => { onShared(); onSharePdf(); }} className="w-full flex items-center gap-3 rounded-xl border border-brand bg-brand-soft p-3 text-left">
+          <div className="h-10 w-10 rounded-xl bg-brand text-white flex items-center justify-center"><Share2 size={20} /></div>
+          <div><p className="font-medium">Enviar o PDF (WhatsApp, e-mail…)</p><p className="text-sm text-muted">Compartilha o arquivo direto do celular</p></div>
+        </button>
         <a href={`https://wa.me/?text=${encodeURIComponent(text + "\n" + link)}`} target="_blank" rel="noopener" onClick={onShared}
           className="flex items-center gap-3 rounded-xl border border-border p-3 hover:border-brand">
           <div className="h-10 w-10 rounded-xl bg-success-soft text-success flex items-center justify-center"><MessageCircle size={20} /></div>

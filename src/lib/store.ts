@@ -109,21 +109,15 @@ interface State extends AppData {
 const CID = "cmp_demo";
 
 function emptyData(): AppData {
-  const seed = createSeedData();
+  // Identidade NEUTRA para conta nova (sem herdar a demo). O onboarding preenche
+  // o nome real da empresa. A demonstração (RF Soluções) vem só via loadDemo().
+  const now = new Date().toISOString();
+  const user: User = { id: "usr_local", name: "", email: "", role: "owner", companyId: "cmp_local", avatarColor: "#f4720b" };
+  const company: Company = { id: "cmp_local", name: "Minha empresa", logoText: "OR", brandColor: "#f4720b", plan: "free", createdAt: now };
   return {
-    user: seed.user,
-    company: seed.company,
-    projects: [],
-    reports: [],
-    tasks: [],
-    team: [],
-    timeCards: [],
-    materials: [],
-    equipment: [],
-    checklists: [],
-    incidents: [],
-    expenses: [],
-    contacts: [],
+    user, company,
+    projects: [], reports: [], tasks: [], team: [], timeCards: [],
+    materials: [], equipment: [], checklists: [], incidents: [], expenses: [], contacts: [],
   };
 }
 

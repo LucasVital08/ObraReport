@@ -219,7 +219,7 @@ export const documentMap = {
 // ---------- Company ----------
 export const companyMap = {
   toRow(c: Company): Row {
-    return { id: c.id, name: c.name, logo_text: c.logoText, brand_color: c.brandColor, plan: c.plan,
+    return { id: c.id, name: c.name, logo_text: c.logoText, logo_url: c.logoUrl ?? null, brand_color: c.brandColor, plan: c.plan,
       document: c.document ?? null, city: c.city ?? null, client_visibility: c.clientVisibility ?? null };
   },
 };

@@ -95,6 +95,9 @@ function kvBlock(ctx: Ctx, rows: [string, string][]) {
 
 function logoBox(ctx: Ctx, x: number, y: number, size = 16) {
   const { doc, company } = ctx;
+  if (company.logoUrl) {
+    try { doc.addImage(company.logoUrl, "PNG", x, y, size, size); return; } catch { /* cai pro fallback */ }
+  }
   doc.setFillColor(...rgb(BRAND));
   doc.roundedRect(x, y, size, size, 3, 3, "F");
   doc.setTextColor(255, 255, 255);
@@ -329,16 +332,22 @@ export function generateRdoPdf(report: DailyReport, project: Project, company: C
   doc.setFillColor(...rgb(BRAND));
   doc.rect(0, 0, PW, bannerH, "F");
 
-  // Caixa de logo branca com as iniciais da empresa em laranja
+  // Caixa de logo: usa o logo da empresa (se houver) ou as iniciais.
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(M, 11, 18, 18, 3, 3, "F");
-  doc.setTextColor(...rgb(BRAND));
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text(
-    company.logoText || company.name.slice(0, 3).toUpperCase(),
-    M + 9, 21.5, { align: "center" },
-  );
+  let logoOk = false;
+  if (company.logoUrl) {
+    try { doc.addImage(company.logoUrl, "PNG", M + 1, 12, 16, 16); logoOk = true; } catch { logoOk = false; }
+  }
+  if (!logoOk) {
+    doc.setTextColor(...rgb(BRAND));
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text(
+      company.logoText || company.name.slice(0, 3).toUpperCase(),
+      M + 9, 21.5, { align: "center" },
+    );
+  }
 
   // Título e empresa (branco)
   doc.setTextColor(255, 255, 255);
