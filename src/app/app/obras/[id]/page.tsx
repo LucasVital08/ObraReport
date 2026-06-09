@@ -32,6 +32,7 @@ export default function ObraDetailPage() {
   // loop infinito (React #185 "Maximum update depth exceeded").
   const project = useStore((s) => s.projects.find((p) => p.id === id));
   const updateProject = useStore((s) => s.updateProject);
+  const deleteProject = useStore((s) => s.deleteProject);
   const allReports = useStore((s) => s.reports);
   const allTasks = useStore((s) => s.tasks);
   const allTeam = useStore((s) => s.team);
@@ -51,6 +52,14 @@ export default function ObraDetailPage() {
 
   function openEdit() { if (project) { setForm(projectToForm(project)); setEditOpen(true); } }
   function saveEdit() { if (project && form) { updateProject(project.id, formToProject(form)); setEditOpen(false); show("Obra atualizada!"); } }
+  function handleDelete() {
+    if (!project) return;
+    const ok = confirm(`Excluir a obra "${project.name}"?\n\nTodos os RDOs, fotos, documentos e registros desta obra serão removidos. Esta ação não pode ser desfeita.`);
+    if (!ok) return;
+    deleteProject(project.id);
+    show("Obra excluída.");
+    router.push("/app/obras");
+  }
   function setF<K extends keyof ProjectFormState>(k: K, v: ProjectFormState[K]) { setForm((f) => (f ? { ...f, [k]: v } : f)); }
 
   const reports = allReports.filter((r) => r.projectId === id);
@@ -141,7 +150,15 @@ export default function ObraDetailPage() {
       {/* Modal de edição da obra */}
       {form && (
         <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Editar obra" wide
-          footer={<><Button variant="ghost" onClick={() => setEditOpen(false)}>Cancelar</Button><Button onClick={saveEdit}>Salvar alterações</Button></>}>
+          footer={
+            <div className="flex items-center justify-between w-full gap-2">
+              <Button variant="ghost" className="text-danger" onClick={handleDelete}><Trash2 size={15} /> Excluir obra</Button>
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancelar</Button>
+                <Button onClick={saveEdit}>Salvar alterações</Button>
+              </div>
+            </div>
+          }>
           <ProjectFormFields form={form} set={setF} />
         </Modal>
       )}
