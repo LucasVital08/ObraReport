@@ -122,6 +122,7 @@ export default function ObraDetailPage() {
               ) : (
                 <>
                   <Button onClick={openEdit} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><Pencil size={15} /> Editar</Button>
+                  <Button onClick={handleDelete} className="bg-white/20 text-white border-0 hover:bg-danger hover:text-white shadow-none"><Trash2 size={15} /> Excluir</Button>
                   <div className="relative w-48">
                     <Select value={project.status} onChange={(e) => updateProject(project.id, { status: e.target.value as ProjectStatus })}
                       className="rounded-full bg-white/95 text-graphite border-0 shadow-sm font-semibold h-9 pr-9 text-sm">
