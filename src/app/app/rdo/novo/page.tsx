@@ -36,6 +36,21 @@ const QUESTIONS = [
   { key: "observacoes", q: "Mais alguma observação técnica importante para registrar?", hint: "Visitas, detalhes técnicos, algo a destacar. Se não, diga \"não\"." },
 ];
 
+// Sugestões rápidas por pergunta: o usuário toca e o item já entra na resposta,
+// sem precisar digitar. O campo de texto/voz continua para o que for diferente.
+const QUESTION_CHIPS: Record<string, string[]> = {
+  clima: ["Ensolarado", "Parcialmente nublado", "Nublado", "Chuva", "Chuva forte", "Garoa", "Calor intenso", "Vento forte", "Canteiro organizado", "Sem interferência climática"],
+  equipe: ["Encarregado", "Pedreiro", "Servente", "Ajudante", "Eletricista", "Encanador", "Pintor", "Soldador", "Montador", "Carpinteiro", "Armador", "Supervisor"],
+  horarios: ["Das 7h às 17h", "Das 7h30 às 17h", "Das 8h às 18h", "Das 8h às 17h", "Das 22h às 3h (noturno)"],
+  atividades: ["Alvenaria", "Reboco/emboço", "Concretagem", "Forma e armação", "Instalação elétrica", "Instalação hidráulica", "Assentamento de piso", "Pintura", "Drywall", "Estrutura metálica", "Impermeabilização", "Demolição/desmontagem", "Limpeza do canteiro"],
+  materiais: ["Cimento", "Areia", "Brita", "Tijolo/bloco", "Argamassa", "Cal", "Vergalhão/aço", "Tubos PVC", "Fios/cabos", "Tinta", "Madeira", "Chapas de drywall", "Parafusos", "Betoneira", "Lixadeira", "Furadeira", "Esmerilhadeira", "Máquina de solda", "Escada", "Andaime", "Plataforma elevatória", "Serra circular", "Martelete"],
+  ocorrencias: ["Sem ocorrências", "Sem acidentes", "EPIs em uso", "Atraso de material", "Falta de energia", "Chuva interrompeu o serviço", "Quebra de equipamento", "Falta de mão de obra", "Acesso difícil", "Retrabalho", "Aguardando liberação"],
+  solicitacoes: ["Sem solicitações", "Cliente pediu alteração", "Aguardando aprovação do cliente", "Fiscalização presente", "Cliente aprovou o serviço"],
+  gastos: ["Sem gastos", "Combustível", "Alimentação", "Material", "Locação de equipamento", "Transporte/frete", "Pedágio/estacionamento"],
+  pendencias: ["Continuar o serviço amanhã", "Aguardar material", "Aguardar liberação", "Sem pendências"],
+  observacoes: ["Sem observações", "Visita técnica realizada", "Registro fotográfico anexado", "Cliente acompanhou o serviço"],
+};
+
 function NovoRdoInner() {
   const router = useRouter();
   const params = useSearchParams();
@@ -215,6 +230,15 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
   const liveTail = speech.listening ? (speech.transcript + speech.interim).trim() : "";
   const displayValue = speech.listening ? (committed ? committed + " " : "") + liveTail : committed;
   const micBusy = speech.listening || speech.transcribing;
+  const chips = QUESTION_CHIPS[current.key] || [];
+
+  // Adiciona uma sugestão à resposta (sem duplicar) — atalho de "toque e sobe".
+  function addChip(chip: string) {
+    const cur = (answers[current.key] || "").trim();
+    const has = cur.toLowerCase().split(/[,;.]\s*/).map((s) => s.trim()).includes(chip.toLowerCase());
+    if (has) return;
+    setAnswers({ ...answers, [current.key]: cur ? `${cur}, ${chip}` : chip });
+  }
 
   // Finaliza a captura de voz do trecho atual e devolve o mapa de respostas já
   // com o texto reconhecido aplicado à pergunta corrente (stop() é assíncrono).
@@ -321,12 +345,30 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
             {speech.error && <p className="mt-1 text-xs text-danger max-w-xs">{speech.error}</p>}
           </div>
 
-          {/* Resposta por teclado (largura cheia) */}
-          <div className="mt-6">
+          {/* Sugestões rápidas: toque e já entra na resposta */}
+          {chips.length > 0 && (
+            <div className="mt-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Toque para adicionar</p>
+              <div className="flex flex-wrap gap-2">
+                {chips.map((c) => {
+                  const active = (answers[current.key] || "").toLowerCase().includes(c.toLowerCase());
+                  return (
+                    <button key={c} type="button" disabled={micBusy} onClick={() => addChip(c)}
+                      className={`text-sm rounded-full px-3 py-1.5 border transition-colors disabled:opacity-50 ${active ? "bg-brand text-white border-brand" : "bg-brand-soft text-brand-dark border-transparent hover:bg-brand/15 active:scale-95"}`}>
+                      {active ? "✓ " : "+ "}{c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Resposta por teclado (largura cheia) — para o que for diferente */}
+          <div className="mt-5">
             <Textarea value={displayValue} readOnly={micBusy}
               onChange={(e) => setAnswers({ ...answers, [current.key]: e.target.value })}
-              placeholder="Digite a resposta aqui — ou toque no microfone acima…"
-              className="w-full min-h-40 text-base leading-relaxed" />
+              placeholder="Toque nas sugestões acima, fale no microfone ou digite aqui o que for diferente…"
+              className="w-full min-h-32 text-base leading-relaxed" />
           </div>
         </div>
       </div>
