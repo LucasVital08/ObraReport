@@ -75,15 +75,22 @@ export async function recompressDataUrl(dataUrl: string, maxDim = 1600, quality 
 }
 
 // Sobe um arquivo para o Supabase Storage e retorna a URL pública.
-// Imagens são comprimidas antes (Storage ou base64). Em modo local/demo (sem
-// Supabase ou sem empresa), retorna um data URL base64 — app funciona offline.
+// Fotos do RDO: SEMPRE retornam base64 comprimido — assim carregam no app e
+// embutem no PDF de forma 100% confiável, sem depender de bucket público/CORS.
+// O base64 é leve (≤ ~1600px) e viaja junto do RDO (sincroniza pelo banco).
+// Documentos (PDF, etc.) continuam indo para o Storage quando disponível.
 export async function uploadFile(
   bucket: "rdo-media" | "documents",
   file: File,
   companyId: string,
 ): Promise<string> {
-  const prepared = file.type.startsWith("image/") ? await compressImage(file) : file;
+  const isImage = file.type.startsWith("image/");
+  const prepared = isImage ? await compressImage(file) : file;
 
+  // Fotos -> base64 garantido (carrega no app e no PDF sempre).
+  if (isImage) return fileToDataUrl(prepared);
+
+  // Documentos -> Storage quando configurado; senão, base64.
   const sb = isSupabaseEnabled ? createClient() : null;
   if (!sb || !companyId) return fileToDataUrl(prepared);
 

@@ -7,15 +7,19 @@ import { useStore } from "@/lib/store";
 import { aiFromQuestions } from "@/lib/ai/client";
 import { emptyDraft, applyAiResult, type RdoDraft } from "@/lib/rdo";
 import { loadProgress, saveProgress, clearProgress } from "@/lib/rdoProgress";
+import { uploadFile } from "@/lib/data/storage";
 import { useSpeech } from "@/lib/useSpeech";
 import { RdoEditor } from "@/components/rdo-editor";
 import { PageHeader } from "@/components/page";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { usePlan } from "@/lib/usePlan";
 import { formatLimit } from "@/lib/plans";
+import { uid, colorFromString } from "@/lib/utils";
+import type { MediaItem } from "@/lib/types";
 import { Card, Button, Select, Textarea, useToast, Badge } from "@/components/ui";
 import {
-  Mic, Square, Sparkles, ArrowRight, ArrowLeft, Save, CheckCircle2, Plus, X, Trophy, Wand2, Loader2,
+  Mic, Square, Sparkles, ArrowRight, ArrowLeft, Save, Plus, X, Trophy, Wand2, Loader2,
+  Camera, ImagePlus, Trash2,
 } from "lucide-react";
 
 type Stage = "intro" | "creating" | "review";
@@ -113,6 +117,7 @@ function NovoRdoInner() {
         projectName={project?.name || "Obra"}
         supervisor={project?.supervisor || user.name}
         projectId={projectId}
+        teamNames={teamNames}
         answers={answers} setAnswers={setAnswers} idx={idx} setIdx={setIdx}
         onCancel={() => setStage("intro")}
         onDone={(d) => { setDraft(d); setStage("review"); }}
@@ -213,14 +218,20 @@ function NovoRdoInner() {
 // =====================================================================
 //  Experiência imersiva (tela cheia) de criação por perguntas + IA
 // =====================================================================
-function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnswers, idx, setIdx, onCancel, onDone }: {
-  projectId: string; projectName: string; supervisor: string;
+function ImmersiveCreator({ projectId, projectName, supervisor, teamNames, answers, setAnswers, idx, setIdx, onCancel, onDone }: {
+  projectId: string; projectName: string; supervisor: string; teamNames: string[];
   answers: Record<string, string>; setAnswers: (a: Record<string, string>) => void;
   idx: number; setIdx: (i: number) => void;
   onCancel: () => void; onDone: (d: RdoDraft) => void;
 }) {
   const speech = useSpeech();
   const [busy, setBusy] = React.useState(false);
+  const companyId = useStore((s) => s.user.companyId);
+  const [showPhotos, setShowPhotos] = React.useState(false);
+  const [photos, setPhotos] = React.useState<MediaItem[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
+  const galleryRef = React.useRef<HTMLInputElement>(null);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
   const current = QUESTIONS[idx];
   const total = QUESTIONS.length;
   const progress = Math.round(((idx + 1) / total) * 100);
@@ -230,14 +241,21 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
   const liveTail = speech.listening ? (speech.transcript + speech.interim).trim() : "";
   const displayValue = speech.listening ? (committed ? committed + " " : "") + liveTail : committed;
   const micBusy = speech.listening || speech.transcribing;
-  const chips = QUESTION_CHIPS[current.key] || [];
+  // Para a pergunta de equipe, oferece os nomes reais da obra + as funções comuns.
+  const chips = current.key === "equipe"
+    ? Array.from(new Set([...teamNames, ...(QUESTION_CHIPS.equipe || [])]))
+    : (QUESTION_CHIPS[current.key] || []);
 
-  // Adiciona uma sugestão à resposta (sem duplicar) — atalho de "toque e sobe".
-  function addChip(chip: string) {
-    const cur = (answers[current.key] || "").trim();
-    const has = cur.toLowerCase().split(/[,;.]\s*/).map((s) => s.trim()).includes(chip.toLowerCase());
-    if (has) return;
-    setAnswers({ ...answers, [current.key]: cur ? `${cur}, ${chip}` : chip });
+  const answerParts = () => (answers[current.key] || "").split(/,\s*/).map((s) => s.trim()).filter(Boolean);
+  const chipActive = (chip: string) => answerParts().some((p) => p.toLowerCase() === chip.toLowerCase());
+
+  // Toque alterna a sugestão: adiciona se não estiver, remove se já estiver.
+  function toggleChip(chip: string) {
+    const parts = answerParts();
+    const i = parts.findIndex((p) => p.toLowerCase() === chip.toLowerCase());
+    if (i >= 0) parts.splice(i, 1);
+    else parts.push(chip);
+    setAnswers({ ...answers, [current.key]: parts.join(", ") });
   }
 
   // Finaliza a captura de voz do trecho atual e devolve o mapa de respostas já
@@ -264,7 +282,30 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
     const next = await captureCurrent();
     setAnswers(next);
     if (idx < total - 1) setIdx(idx + 1);
-    else finish(next);
+    else setShowPhotos(true); // última pergunta → passo de fotos
+  }
+
+  // Anexa fotos DURANTE a criação (vão direto para o RDO/PDF).
+  async function onPhotoFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!files.length) return;
+    setUploadingPhoto(true);
+    let next = photos;
+    try {
+      for (const file of files) {
+        const kind: MediaItem["kind"] = file.type.startsWith("video") ? "video" : "photo";
+        const url = await uploadFile("rdo-media", file, companyId);
+        next = [...next, {
+          id: uid("med"), kind, phase: "durante", caption: file.name.replace(/\.[^.]+$/, ""),
+          dataUrl: kind === "photo" ? url : undefined,
+          color: colorFromString(file.name), author: supervisor, createdAt: new Date().toISOString(), includeInPdf: true,
+        }];
+        setPhotos(next);
+      }
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   async function finish(mergedInput?: Record<string, string>) {
@@ -290,6 +331,7 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
       const { chegada, saida } = extractTimeRange(merged.horarios);
       d = { ...d, arrival: d.arrival || chegada || "", departure: d.departure || saida || "" };
     }
+    if (photos.length) d = { ...d, media: photos }; // fotos anexadas durante a criação
     onDone(d);
   }
 
@@ -299,6 +341,54 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
         <div className="h-20 w-20 rounded-3xl bg-white/15 flex items-center justify-center animate-pulse-ring"><Wand2 size={36} /></div>
         <h2 className="text-2xl font-extrabold mt-6">Montando seu RDO…</h2>
         <p className="text-white/85 mt-2 max-w-sm">A IA está organizando suas respostas em um relatório profissional.</p>
+      </div>
+    );
+  }
+
+  // ---- Passo de FOTOS (durante a criação, antes de gerar o RDO) ----
+  if (showPhotos) {
+    return (
+      <div className="fixed inset-0 z-[60] bg-background flex flex-col">
+        <div className="shrink-0 border-b border-border bg-surface/90 backdrop-blur">
+          <div className="flex items-center justify-between gap-3 px-4 h-14 max-w-2xl mx-auto w-full">
+            <button onClick={() => setShowPhotos(false)} className="p-2 -ml-2 rounded-lg text-muted hover:text-foreground" aria-label="Voltar"><ArrowLeft size={20} /></button>
+            <p className="text-sm font-semibold">Fotos do dia</p>
+            <span className="text-xs font-semibold text-brand"><Trophy size={14} className="inline" /> {photos.length}</span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto w-full px-5 py-8 animate-fade-up">
+            <h1 className="text-2xl font-extrabold leading-tight">Anexe as fotos da obra</h1>
+            <p className="text-muted mt-2">Registre o antes, durante e depois. As fotos entram direto no RDO e no PDF.</p>
+
+            <div className="mt-6 flex gap-2 flex-wrap">
+              <Button variant="outline" disabled={uploadingPhoto} onClick={() => galleryRef.current?.click()}><ImagePlus size={16} /> {uploadingPhoto ? "Enviando…" : "Galeria / arquivos"}</Button>
+              <Button variant="outline" disabled={uploadingPhoto} onClick={() => cameraRef.current?.click()}><Camera size={16} /> Tirar foto</Button>
+              <input ref={galleryRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={onPhotoFiles} />
+              <input ref={cameraRef} type="file" accept="image/*,video/*" capture="environment" className="hidden" onChange={onPhotoFiles} />
+            </div>
+
+            {photos.length > 0 && (
+              <div className="mt-5 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {photos.map((m, i) => (
+                  <div key={m.id} className="relative rounded-xl overflow-hidden aspect-square border border-border">
+                    {m.dataUrl ? <img src={m.dataUrl} alt={m.caption} className="w-full h-full object-cover" /> :
+                      <div className="w-full h-full flex items-center justify-center bg-black/5"><Camera size={20} className="text-muted" /></div>}
+                    <button onClick={() => setPhotos(photos.filter((_, j) => j !== i))}
+                      className="absolute top-1 right-1 bg-danger text-white rounded-md p-1" aria-label="Remover"><Trash2 size={13} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {photos.length === 0 && <p className="mt-6 text-sm text-muted">Nenhuma foto ainda. Você também pode pular e adicionar depois.</p>}
+          </div>
+        </div>
+        <div className="shrink-0 border-t border-border bg-surface">
+          <div className="max-w-2xl mx-auto w-full px-5 py-3 flex items-center justify-between gap-2">
+            <Button variant="ghost" onClick={() => setShowPhotos(false)}><ArrowLeft size={16} /> Perguntas</Button>
+            <Button size="lg" disabled={uploadingPhoto} onClick={() => finish()}><Sparkles size={18} /> Gerar RDO</Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -351,9 +441,9 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
               <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Toque para adicionar</p>
               <div className="flex flex-wrap gap-2">
                 {chips.map((c) => {
-                  const active = (answers[current.key] || "").toLowerCase().includes(c.toLowerCase());
+                  const active = chipActive(c);
                   return (
-                    <button key={c} type="button" disabled={micBusy} onClick={() => addChip(c)}
+                    <button key={c} type="button" disabled={micBusy} onClick={() => toggleChip(c)}
                       className={`text-sm rounded-full px-3 py-1.5 border transition-colors disabled:opacity-50 ${active ? "bg-brand text-white border-brand" : "bg-brand-soft text-brand-dark border-transparent hover:bg-brand/15 active:scale-95"}`}>
                       {active ? "✓ " : "+ "}{c}
                     </button>
@@ -380,7 +470,7 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
           <div className="flex gap-2">
             <Button variant="outline" onClick={goNext} disabled={speech.transcribing}>Pular</Button>
             {isLast ? (
-              <Button onClick={goNext} disabled={speech.transcribing}><CheckCircle2 size={16} /> Concluir</Button>
+              <Button onClick={goNext} disabled={speech.transcribing}><Camera size={16} /> Fotos</Button>
             ) : (
               <Button onClick={goNext} disabled={speech.transcribing}>Próxima <ArrowRight size={16} /></Button>
             )}
