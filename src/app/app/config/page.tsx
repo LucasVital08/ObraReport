@@ -25,6 +25,7 @@ export default function ConfigPage() {
   const resetAll = useStore((s) => s.resetAll);
   const loadDemo = useStore((s) => s.loadDemo);
   const importSampleObra = useStore((s) => s.importSampleObra);
+  const importMinhasObras = useStore((s) => s.importMinhasObras);
   const hydrateData = useStore((s) => s.hydrateData);
 
   const [name, setName] = React.useState(company.name);
@@ -225,6 +226,11 @@ export default function ConfigPage() {
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={exportData}><Download size={16} /> Exportar meus dados</Button>
               <Button variant="outline" onClick={optimizeSpace} disabled={optimizing}><ImageDown size={16} /> {optimizing ? "Otimizando…" : "Otimizar fotos e liberar espaço"}</Button>
+              <Button variant="outline" onClick={() => {
+                const ok = importMinhasObras();
+                show(ok ? "Obras Lidermaq e Amália Rodrigues adicionadas!" : "Essas obras já estão na sua conta.");
+                if (ok) router.push("/app/obras");
+              }}><Building2 size={16} /> Importar minhas obras (Lidermaq + Amália Rodrigues)</Button>
               <Button variant="outline" onClick={() => {
                 const ok = importSampleObra();
                 show(ok ? "Obra Shopping Vitória importada com os 17 RDOs!" : "A obra Shopping Vitória já está na sua conta.");

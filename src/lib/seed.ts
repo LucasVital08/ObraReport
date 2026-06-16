@@ -871,6 +871,50 @@ export function buildSampleShoppingVitoria(companyId: string): { project: Projec
   return { project, reports, team };
 }
 
+// Obras atuais do Lucas Vital (Lidermaq + Amália Rodrigues) para importar na conta.
+// Lidermaq reaproveita os RDOs da usina (com Lucas Vital como responsável);
+// Amália Rodrigues entra como projeto pronto para preencher.
+export function buildMinhasObras(companyId: string): { projects: Project[]; reports: DailyReport[]; team: TeamMember[] } {
+  const now = new Date().toISOString();
+  const lidermaq: Project = {
+    id: uid("prj"), companyId,
+    name: "Revitalização da Usina de Asfalto — Lidermaq",
+    client: "Lidermaq",
+    address: "Pátio de manutenção — Lidermaq, Muribeca",
+    technicalLead: "Responsável Técnico", supervisor: "Lucas Vital",
+    startDate: "2026-06-01", expectedEndDate: "2026-06-20",
+    status: "em_andamento", budget: 145000,
+    description:
+      "Revitalização e tratamento da estrutura metálica da usina de asfalto: lavagem, lixamento, remoção de oxidação, preparação da superfície e pintura, com atuação em diferentes frentes.",
+    coverColor: "#f4720b", createdAt: now,
+  };
+  const amalia: Project = {
+    id: uid("prj"), companyId,
+    name: "Obra Amália Rodrigues",
+    client: "Amália Rodrigues",
+    address: "",
+    technicalLead: "", supervisor: "Lucas Vital",
+    startDate: "2026-06-01", expectedEndDate: "2026-06-30",
+    status: "em_andamento", budget: undefined,
+    description: "Obra sob responsabilidade de Lucas Vital. Edite os dados da obra e adicione os RDOs (por voz, foto ou texto).",
+    coverColor: "#7c3aed", createdAt: now,
+  };
+  const reports = [usinaRdo001(lidermaq), usinaRdo002(lidermaq)].map((r) => ({
+    ...r, id: uid("rdo"), companyId, projectId: lidermaq.id, responsible: "Lucas Vital", supervisor: "Lucas Vital",
+  }));
+  const crew: [string, string, string][] = [
+    ["Lucas Vital", "Responsável de campo", lidermaq.id],
+    ["Leone", "Lixador", lidermaq.id],
+    ["William Costa", "Lixador", lidermaq.id],
+    ["Ítalo Ferreira", "Lixador", lidermaq.id],
+    ["Lucas Vital", "Responsável", amalia.id],
+  ];
+  const team: TeamMember[] = crew.map(([name, role, projectId], i) => ({
+    id: uid("tm"), companyId, name, role, phone: `27 99999-20${String(i + 1).padStart(2, "0")}`, active: true, projectId,
+  }));
+  return { projects: [lidermaq, amalia], reports, team };
+}
+
 /* Gerador sintético antigo desativado — substituído pelos RDOs reais acima.
 function _legacyDrywallUnused() {
   const days: DrywallDayLegacy[] = [

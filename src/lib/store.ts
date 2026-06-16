@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { createSeedData, buildSampleShoppingVitoria, type AppData } from "@/lib/seed";
+import { createSeedData, buildSampleShoppingVitoria, buildMinhasObras, type AppData } from "@/lib/seed";
 import { nowISO, uid } from "@/lib/utils";
 
 // localStorage à prova de erros: se a cota estourar (ex.: muitas fotos em
@@ -45,6 +45,7 @@ interface State extends AppData {
   loadDemoClient: () => void;
   resetAll: () => void;
   importSampleObra: () => boolean;
+  importMinhasObras: () => boolean;
   completeOnboarding: () => void;
   setTheme: (t: "light" | "dark") => void;
   updateCompany: (patch: Partial<Company>) => void;
@@ -256,6 +257,24 @@ export const useStore = create<State>()(
           team.forEach((t) => up(st, "team_members", t));
           return {
             projects: [...st.projects, project],
+            reports: [...st.reports, ...reports],
+            team: [...st.team, ...team],
+          };
+        });
+        return true;
+      },
+      // Importa as obras atuais do Lucas Vital (Lidermaq + Amália Rodrigues).
+      importMinhasObras: () => {
+        const s = useStore.getState();
+        if (s.projects.some((p) => p.name.includes("Lidermaq") || p.name.includes("Amália Rodrigues"))) return false;
+        const cid = s.user.companyId || CID;
+        const { projects, reports, team } = buildMinhasObras(cid);
+        set((st) => {
+          projects.forEach((p) => up(st, "projects", p));
+          reports.forEach((r) => up(st, "reports", r));
+          team.forEach((t) => up(st, "team_members", t));
+          return {
+            projects: [...st.projects, ...projects],
             reports: [...st.reports, ...reports],
             team: [...st.team, ...team],
           };
