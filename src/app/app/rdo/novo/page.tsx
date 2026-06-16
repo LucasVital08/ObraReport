@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { aiFromQuestions } from "@/lib/ai/client";
-import { AI_QUESTION_KEYS } from "@/lib/ai/prompts";
 import { emptyDraft, applyAiResult, type RdoDraft } from "@/lib/rdo";
 import { loadProgress, saveProgress, clearProgress } from "@/lib/rdoProgress";
 import { useSpeech } from "@/lib/useSpeech";
@@ -21,19 +20,20 @@ import {
 
 type Stage = "intro" | "creating" | "review";
 
+// 10 perguntas certeiras: cobrem tudo que um RDO profissional precisa, sem
+// redundância. Todas as respostas vão para a IA (prompt consolidado) montar o
+// relatório. A ordem segue o raciocínio natural do dia de obra.
 const QUESTIONS = [
-  { key: "atividades", q: "O que foi executado hoje?", hint: "Descreva as principais atividades do dia." },
-  { key: "equipe", q: "Quem esteve presente?", hint: "Liste os nomes da equipe." },
-  { key: "chegada", q: "Qual foi o horário de chegada?", hint: "Ex.: 07:30" },
-  { key: "saida", q: "Qual foi o horário de saída?", hint: "Ex.: 17:00" },
-  { key: "status", q: "O serviço foi concluído, parcial ou ficou pendente?", hint: "" },
-  { key: "problema", q: "Houve algum problema, atraso ou impedimento?", hint: "Se não houve, é só dizer \"não\"." },
-  { key: "solicitacao", q: "Houve solicitação do cliente/contratante?", hint: "" },
-  { key: "materiais", q: "Foram usados materiais ou equipamentos?", hint: "" },
-  { key: "gastos", q: "Houve compra, gasto ou reembolso?", hint: "Ex.: 80 de gasolina, 95 no almoço." },
-  { key: "seguranca", q: "Houve acidente, risco ou problema de segurança?", hint: "" },
-  { key: "pendencia", q: "O que ficou pendente para o próximo dia?", hint: "" },
-  { key: "obs", q: "Alguma observação final?", hint: "" },
+  { key: "clima", q: "Como estava o tempo e a condição do canteiro hoje?", hint: "Ex.: sol de manhã, chuva à tarde que parou o serviço externo; canteiro organizado." },
+  { key: "equipe", q: "Quem trabalhou hoje e em quais funções?", hint: "Nomes e funções. Ex.: João (pedreiro), Carlos (servente)." },
+  { key: "horarios", q: "Qual foi o horário de início e de término do trabalho?", hint: "Ex.: das 7h30 às 17h." },
+  { key: "atividades", q: "O que foi executado hoje? Detalhe os serviços e o avanço de cada um.", hint: "Diga cada serviço e se ficou concluído, parcial ou não saiu." },
+  { key: "materiais", q: "Quais materiais e equipamentos foram usados? Faltou algum?", hint: "Ex.: 10 sacos de cimento, betoneira; faltou areia." },
+  { key: "ocorrencias", q: "Houve problema, atraso, impedimento ou questão de segurança?", hint: "Atrasos, falta de material/energia, acidentes, riscos, EPI. Se não houve, diga \"não\"." },
+  { key: "solicitacoes", q: "Houve solicitação, decisão ou cobrança do contratante/fiscalização?", hint: "Pedidos, aprovações ou observações do cliente. Se não, diga \"não\"." },
+  { key: "gastos", q: "Houve algum gasto, compra ou reembolso?", hint: "Ex.: R$ 80 de gasolina, R$ 95 no almoço. Se não, diga \"não\"." },
+  { key: "pendencias", q: "O que ficou pendente e qual o plano para o próximo dia?", hint: "O que falta concluir e o que será feito amanhã." },
+  { key: "observacoes", q: "Mais alguma observação técnica importante para registrar?", hint: "Visitas, detalhes técnicos, algo a destacar. Se não, diga \"não\"." },
 ];
 
 function NovoRdoInner() {
@@ -252,8 +252,8 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
     };
     const qa = QUESTIONS.map((q) => ({ q: q.q, a: (merged[q.key] || "").trim() }))
       .filter((x) => x.a).map((x) => `• ${x.q}\n${x.a}`).join("\n\n");
+    // Todas as respostas (não-negativas) vão para a IA montar o RDO completo.
     const llmAnswers = QUESTIONS
-      .filter((q) => AI_QUESTION_KEYS.includes(q.key))
       .map((q) => ({ key: q.key, question: q.q, answer: (merged[q.key] || "").trim() }))
       .filter((a) => a.answer && !isNegative(a.answer));
 
@@ -261,11 +261,11 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
     const baseDraft = emptyDraft(projectId, supervisor, "perguntas");
     const ai = await aiFromQuestions(llmAnswers);
     let d = applyAiResult(baseDraft, ai, qa);
-    if (merged.chegada) d = { ...d, arrival: extractTime(merged.chegada) || d.arrival };
-    if (merged.saida) d = { ...d, departure: extractTime(merged.saida) || d.departure };
-    const noteParts = [merged.obs, merged.status ? `Status do serviço: ${merged.status}` : ""]
-      .map((s) => (s || "").trim()).filter(Boolean);
-    if (noteParts.length) d = { ...d, notes: noteParts.join(" — ") };
+    // Fallback determinístico de horários a partir da resposta de horário.
+    if (merged.horarios && (!d.arrival || !d.departure)) {
+      const { chegada, saida } = extractTimeRange(merged.horarios);
+      d = { ...d, arrival: d.arrival || chegada || "", departure: d.departure || saida || "" };
+    }
     onDone(d);
   }
 
@@ -361,6 +361,13 @@ function extractTime(s: string): string | undefined {
     return undefined;
   }
   return `${m[1].padStart(2, "0")}:${(m[2] || "00").padStart(2, "0")}`;
+}
+
+// Extrai início e término de uma única resposta ("das 7h30 às 17h").
+function extractTimeRange(s: string): { chegada?: string; saida?: string } {
+  const tokens = s.match(/\d{1,2}\s*[:h]\s*\d{0,2}|\b\d{3,4}\b|\b\d{1,2}\b/gi) || [];
+  const times = tokens.map((t) => extractTime(t)).filter((t): t is string => !!t);
+  return { chegada: times[0], saida: times.length > 1 ? times[times.length - 1] : undefined };
 }
 
 export default function NovoRdoPage() {

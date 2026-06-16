@@ -449,19 +449,29 @@ export interface FinalReport {
 }
 
 // ---- Estrutura de saída da IA ----
+export interface AiActivity {
+  descricao: string;
+  status?: "concluida" | "parcial" | "nao_executada";
+}
+
 export interface AiRdoResult {
   resumo_executivo: string;
-  equipe_presente: { name: string; role?: string }[];
+  clima: string;
+  condicao_canteiro: string;
   horarios: { chegada?: string; saida?: string };
-  atividades_executadas: string[];
+  equipe_presente: { name: string; role?: string }[];
+  atividades_executadas: AiActivity[];
   materiais_utilizados: string[];
+  materiais_solicitados: string[];
   equipamentos_utilizados: string[];
   ocorrencias: string[];
+  impedimentos: string[];
+  riscos: string[];
+  solicitacoes: string[];
   gastos: { description: string; amount?: number; category?: string }[];
   pendencias: string[];
-  solicitacoes: string[];
-  riscos: string[];
-  clima?: string;
+  plano_proximo_dia: string[];
+  observacoes_tecnicas: string;
   campos_faltantes: string[];
   perguntas_complementares: string[];
 }

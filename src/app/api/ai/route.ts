@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { organizeRdoText } from "@/lib/ai/engine";
-import { FREE_TEXT_SYSTEM, QUESTIONS_SYSTEM, QUESTION_PROMPTS } from "@/lib/ai/prompts";
+import { FREE_TEXT_SYSTEM, QUESTIONS_SYSTEM } from "@/lib/ai/prompts";
 import type { AiRdoResult } from "@/lib/types";
 
 // Rota de IA do RDO.
@@ -15,9 +15,10 @@ export const runtime = "nodejs";
 
 function emptyResult(): AiRdoResult {
   return {
-    resumo_executivo: "", equipe_presente: [], horarios: {}, atividades_executadas: [],
-    materiais_utilizados: [], equipamentos_utilizados: [], ocorrencias: [], gastos: [],
-    pendencias: [], solicitacoes: [], riscos: [], clima: "",
+    resumo_executivo: "", clima: "", condicao_canteiro: "", horarios: {}, equipe_presente: [],
+    atividades_executadas: [], materiais_utilizados: [], materiais_solicitados: [],
+    equipamentos_utilizados: [], ocorrencias: [], impedimentos: [], riscos: [], solicitacoes: [],
+    gastos: [], pendencias: [], plano_proximo_dia: [], observacoes_tecnicas: "",
     campos_faltantes: [], perguntas_complementares: [],
   };
 }
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
   // ---- Modo PERGUNTAS: compila TODAS as perguntas+respostas e passa por um
   // único prompt predefinido que preenche o modelo de RDO. ----
   if (Array.isArray(body.questions)) {
-    const answers = body.questions.filter((a) => a?.answer?.trim() && QUESTION_PROMPTS[a.key]);
+    const answers = body.questions.filter((a) => a?.answer?.trim());
     if (answers.length === 0) return NextResponse.json({ mode: "vazio", result: emptyResult() });
 
     const compiled = answers.map((a, i) => `${i + 1}. Pergunta: ${a.question}\n   Resposta: ${a.answer}`).join("\n\n");
