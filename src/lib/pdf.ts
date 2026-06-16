@@ -181,20 +181,23 @@ function photoGrid(ctx: Ctx, media: DailyReport["media"]) {
   for (const p of photos) {
     ensureSpace(ctx, rowH);
     const x = M + col * (w + gap);
-    try {
-      if (p.dataUrl) {
-        ctx.doc.addImage(p.dataUrl, "JPEG", x, ctx.y, w, h, undefined, "FAST");
-      } else {
-        // Placeholder neutro (imagem ausente nos dados de demonstração)
-        ctx.doc.setFillColor(238, 241, 245);
-        ctx.doc.roundedRect(x, ctx.y, w, h, 2, 2, "F");
-        ctx.doc.setTextColor(...rgb(MUTED));
-        ctx.doc.setFontSize(9);
-        ctx.doc.text("Registro fotográfico", x + w / 2, ctx.y + h / 2 - 1, { align: "center" });
-        ctx.doc.setFontSize(7.5);
-        ctx.doc.text(p.phase.toUpperCase(), x + w / 2, ctx.y + h / 2 + 4, { align: "center" });
-      }
-    } catch { /* ignora imagem inválida */ }
+    let drew = false;
+    // Só tentamos embutir quando já é um data URL (embedReportImages normaliza
+    // tudo para JPEG antes). Detecta o formato para o jsPDF não rejeitar.
+    if (p.dataUrl && /^data:image\//i.test(p.dataUrl)) {
+      const fmt = /^data:image\/png/i.test(p.dataUrl) ? "PNG" : "JPEG";
+      try { ctx.doc.addImage(p.dataUrl, fmt, x, ctx.y, w, h, undefined, "FAST"); drew = true; } catch { drew = false; }
+    }
+    if (!drew) {
+      // Placeholder rotulado (nunca um quadro vazio).
+      ctx.doc.setFillColor(238, 241, 245);
+      ctx.doc.roundedRect(x, ctx.y, w, h, 2, 2, "F");
+      ctx.doc.setTextColor(...rgb(MUTED));
+      ctx.doc.setFontSize(9);
+      ctx.doc.text("Foto (ver no app)", x + w / 2, ctx.y + h / 2 - 1, { align: "center" });
+      ctx.doc.setFontSize(7.5);
+      ctx.doc.text(p.phase.toUpperCase(), x + w / 2, ctx.y + h / 2 + 4, { align: "center" });
+    }
     ctx.doc.setDrawColor(225);
     ctx.doc.rect(x, ctx.y, w, h);
     ctx.doc.setTextColor(...rgb(MUTED));
@@ -287,33 +290,66 @@ function signatures(ctx: Ctx, report: DailyReport) {
 }
 
 // ===== RDO diário =====
-// Converte uma URL remota (Storage) em data URL base64. O jsPDF só consegue
-// embutir base64 — se receber uma URL http, a imagem não entra no PDF.
-async function urlToDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise<string | null>((resolve) => {
-      const fr = new FileReader();
-      fr.onloadend = () => resolve(typeof fr.result === "string" ? fr.result : null);
-      fr.onerror = () => resolve(null);
-      fr.readAsDataURL(blob);
+// Carrega QUALQUER fonte de imagem (data URL de qualquer formato — JPEG/PNG/HEIC —
+// ou URL remota do Storage) e devolve um JPEG base64 limpo e redimensionado, que
+// é o que o jsPDF embute de forma 100% confiável. Robusto: tenta CORS direto,
+// cai para fetch→blob, e em último caso devolve o data URL bruto (ou null).
+async function toEmbeddableJpeg(src: string, maxDim = 1600): Promise<string | null> {
+  if (typeof document === "undefined") return /^data:image\//i.test(src) ? src : null;
+
+  const loadImg = (url: string, crossOrigin?: string) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      if (crossOrigin) img.crossOrigin = crossOrigin;
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("img load failed"));
+      img.src = url;
     });
+
+  let img: HTMLImageElement | null = null;
+  let objectUrl: string | null = null;
+  try {
+    if (/^https?:/i.test(src)) {
+      try { img = await loadImg(src, "anonymous"); } catch { img = null; }
+      if (!img) {
+        const res = await fetch(src);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        img = await loadImg(objectUrl);
+      }
+    } else {
+      img = await loadImg(src); // data URL
+    }
+
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    if (!iw || !ih) return null;
+    const scale = Math.min(1, maxDim / Math.max(iw, ih));
+    const w = Math.max(1, Math.round(iw * scale));
+    const h = Math.max(1, Math.round(ih * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const cx = canvas.getContext("2d");
+    if (!cx) return null;
+    cx.fillStyle = "#ffffff"; // fundo branco para PNGs transparentes
+    cx.fillRect(0, 0, w, h);
+    cx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", 0.82);
   } catch {
-    return null;
+    return /^data:image\//i.test(src) ? src : null;
+  } finally {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
 }
 
-// Prepara a mídia do RDO para o PDF: baixa as fotos que estão como URL remota
-// (Supabase Storage) e as transforma em base64. CHAME antes de gerar o PDF.
+// Prepara a mídia do RDO para o PDF: normaliza TODAS as fotos para JPEG base64
+// (resolve o problema das fotos não aparecerem no PDF). CHAME antes de gerar.
 export async function embedReportImages<T extends { media: DailyReport["media"] }>(report: T): Promise<T> {
   const media = await Promise.all((report.media || []).map(async (m) => {
-    if (m.kind === "photo" && m.dataUrl && /^https?:/i.test(m.dataUrl)) {
-      const data = await urlToDataUrl(m.dataUrl);
-      return data ? { ...m, dataUrl: data } : m;
-    }
-    return m;
+    if (m.kind !== "photo" || !m.dataUrl) return m;
+    const jpeg = await toEmbeddableJpeg(m.dataUrl);
+    return jpeg ? { ...m, dataUrl: jpeg } : m;
   }));
   return { ...report, media };
 }
