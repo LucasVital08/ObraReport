@@ -37,6 +37,8 @@ export default function RdoViewPage() {
   const [signLocked, setSignLocked] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [pdfChoiceOpen, setPdfChoiceOpen] = React.useState(false);
+  // Edição usa rascunho local: grava (e sincroniza) uma vez ao salvar, não a cada tecla.
+  const [editDraft, setEditDraft] = React.useState<DailyReport | null>(null);
 
   if (!report) {
     return <EmptyState title="RDO não encontrado" description="Este relatório pode ter sido removido." action={<Button onClick={() => router.push("/app")}>Voltar ao início</Button>} />;
@@ -90,10 +92,10 @@ export default function RdoViewPage() {
       <div>
         {node}
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" onClick={() => setEditing(false)}><X size={16} /> Cancelar</Button>
-          <Button onClick={() => { setEditing(false); show("RDO atualizado!"); }}><Save size={16} /> Salvar alterações</Button>
+          <Button variant="ghost" onClick={() => { setEditing(false); setEditDraft(null); }}><X size={16} /> Cancelar</Button>
+          <Button onClick={() => { if (editDraft) updateReport(report.id, editDraft); setEditing(false); setEditDraft(null); show("RDO atualizado!"); }}><Save size={16} /> Salvar alterações</Button>
         </div>
-        <RdoEditor draft={report} onChange={(patch) => updateReport(report.id, patch)} teamSuggestions={teamNames} />
+        <RdoEditor draft={editDraft ?? report} onChange={(patch) => setEditDraft((d) => ({ ...(d ?? report), ...patch }))} teamSuggestions={teamNames} />
       </div>
     );
   }
@@ -113,7 +115,7 @@ export default function RdoViewPage() {
               </Button>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil size={15} /> Editar</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditDraft(report); setEditing(true); }}><Pencil size={15} /> Editar</Button>
                 <Button variant="outline" size="sm" onClick={() => { setSignLocked(false); setSignOpen(true); }}><PenLine size={15} /> Assinar</Button>
                 <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}><Share2 size={15} /> Compartilhar</Button>
               </>

@@ -161,7 +161,32 @@ export const useStore = create<State>()(
                 company: payload.company ?? s.company,
               }
             : { isAuthenticated: false }),
-      hydrateData: (data) => set(() => ({ ...(data as Partial<State>) })),
+      hydrateData: (data) =>
+        set((s) => {
+          // Merge por id: o servidor vence em ids iguais, mas registros locais
+          // ainda não sincronizados (ex.: criados offline) NÃO são perdidos.
+          const merge = <T extends { id: string }>(server: T[] | undefined, local: T[]): T[] => {
+            if (!server) return local;
+            const ids = new Set(server.map((x) => x.id));
+            return [...server, ...local.filter((x) => !ids.has(x.id))];
+          };
+          const d = data as Partial<CompanyData> & { finalReports?: State["finalReports"]; documents?: State["documents"] };
+          return {
+            projects: merge(d.projects, s.projects),
+            reports: merge(d.reports, s.reports),
+            tasks: merge(d.tasks, s.tasks),
+            team: merge(d.team, s.team),
+            timeCards: merge(d.timeCards, s.timeCards),
+            materials: merge(d.materials, s.materials),
+            equipment: merge(d.equipment, s.equipment),
+            checklists: merge(d.checklists, s.checklists),
+            incidents: merge(d.incidents, s.incidents),
+            expenses: merge(d.expenses, s.expenses),
+            contacts: merge(d.contacts, s.contacts),
+            finalReports: merge(d.finalReports, s.finalReports),
+            documents: merge(d.documents, s.documents),
+          };
+        }),
       register: (name, email, companyName) =>
         set(() => {
           const data = emptyData();
@@ -283,7 +308,8 @@ export const useStore = create<State>()(
       addReport: (r) => {
         const id = uid("rdo");
         set((s) => {
-          const number = s.reports.filter((x) => x.projectId === r.projectId).length + 1;
+          // max+1 (não length+1): evita número duplicado após excluir um RDO.
+          const number = s.reports.filter((x) => x.projectId === r.projectId).reduce((mx, x) => Math.max(mx, x.number || 0), 0) + 1;
           const o: DailyReport = { ...r, id, companyId: s.user.companyId || CID, number, createdAt: nowISO(), updatedAt: nowISO() };
           up(s, "reports", o);
           return { reports: [...s.reports, o] };

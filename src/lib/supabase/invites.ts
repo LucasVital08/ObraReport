@@ -47,6 +47,13 @@ export async function updateMemberRole(id: string, role: Role, clientProjectIds:
   if (error) throw error;
 }
 
+// Remove o acesso de um membro à empresa (RLS permite a owner/admin). O usuário
+// perde o vínculo com a empresa; o login dele continua existindo, sem acesso aos dados.
+export async function removeMember(id: string): Promise<void> {
+  const { error } = await sb().from("profiles").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function listInvites(): Promise<Invite[]> {
   const { data, error } = await sb().from("invites").select("*").order("created_at", { ascending: false });
   if (error) throw error;

@@ -43,6 +43,7 @@ export default function ObraDetailPage() {
   const allIncidents = useStore((s) => s.incidents);
   const allDocuments = useStore((s) => s.documents);
   const isClient = useStore((s) => s.user.role === "client");
+  const isManager = useStore((s) => s.user.role === "owner" || s.user.role === "admin");
   const { show, node } = useToast();
   const [tab, setTab] = React.useState("visao");
   const [editOpen, setEditOpen] = React.useState(false);
@@ -54,6 +55,7 @@ export default function ObraDetailPage() {
   function saveEdit() { if (project && form) { updateProject(project.id, formToProject(form)); setEditOpen(false); show("Obra atualizada!"); } }
   function handleDelete() {
     if (!project) return;
+    if (!isManager) { show("Apenas o dono ou um administrador da empresa pode excluir obras."); return; }
     const ok = confirm(`Excluir a obra "${project.name}"?\n\nTodos os RDOs, fotos, documentos e registros desta obra serão removidos. Esta ação não pode ser desfeita.`);
     if (!ok) return;
     deleteProject(project.id);
@@ -122,7 +124,7 @@ export default function ObraDetailPage() {
               ) : (
                 <>
                   <Button onClick={openEdit} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><Pencil size={15} /> Editar</Button>
-                  <Button onClick={handleDelete} className="bg-white/20 text-white border-0 hover:bg-danger hover:text-white shadow-none"><Trash2 size={15} /> Excluir</Button>
+                  {isManager && <Button onClick={handleDelete} className="bg-white/20 text-white border-0 hover:bg-danger hover:text-white shadow-none"><Trash2 size={15} /> Excluir</Button>}
                   <div className="relative w-48">
                     <Select value={project.status} onChange={(e) => updateProject(project.id, { status: e.target.value as ProjectStatus })}
                       className="rounded-full bg-white/95 text-graphite border-0 shadow-sm font-semibold h-9 pr-9 text-sm">
@@ -153,7 +155,7 @@ export default function ObraDetailPage() {
         <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Editar obra" wide
           footer={
             <div className="flex items-center justify-between w-full gap-2">
-              <Button variant="ghost" className="text-danger" onClick={handleDelete}><Trash2 size={15} /> Excluir obra</Button>
+              {isManager ? <Button variant="ghost" className="text-danger" onClick={handleDelete}><Trash2 size={15} /> Excluir obra</Button> : <span />}
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancelar</Button>
                 <Button onClick={saveEdit}>Salvar alterações</Button>

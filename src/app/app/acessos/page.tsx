@@ -4,7 +4,7 @@ import React from "react";
 import { useStore } from "@/lib/store";
 import { isSupabaseEnabled } from "@/lib/supabase/config";
 import {
-  listMembers, listInvites, createInvite, revokeInvite, updateMemberRole,
+  listMembers, listInvites, createInvite, revokeInvite, updateMemberRole, removeMember,
   type Member, type Invite,
 } from "@/lib/supabase/invites";
 import { PageHeader } from "@/components/page";
@@ -98,6 +98,17 @@ export default function AcessosPage() {
       show("Papel atualizado.");
     } catch (e) {
       show((e as Error).message || "Erro ao atualizar papel.");
+    }
+  }
+
+  async function handleRemoveMember(m: Member) {
+    if (!confirm(`Remover ${m.name || m.email} da empresa? Essa pessoa perde o acesso às obras e aos RDOs.`)) return;
+    try {
+      await removeMember(m.id);
+      setMembers((prev) => prev.filter((x) => x.id !== m.id));
+      show("Membro removido da empresa.");
+    } catch (e) {
+      show((e as Error).message || "Erro ao remover membro.");
     }
   }
 
@@ -196,9 +207,13 @@ export default function AcessosPage() {
                 {m.role === "owner" || m.id === user.id ? (
                   <Badge tone={m.role === "owner" ? "brand" : "neutral"}>{ROLE_LABELS[m.role]}</Badge>
                 ) : (
-                  <Select value={m.role} onChange={(e) => handleRole(m, e.target.value as Role)} className="w-auto text-xs">
-                    {INVITE_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                  </Select>
+                  <div className="flex items-center gap-1.5">
+                    <Select value={m.role} onChange={(e) => handleRole(m, e.target.value as Role)} className="w-auto text-xs">
+                      {INVITE_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                    </Select>
+                    <button onClick={() => handleRemoveMember(m)} aria-label="Remover membro"
+                      className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger-soft"><Trash2 size={15} /></button>
+                  </div>
                 )}
               </div>
             ))}

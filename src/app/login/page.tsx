@@ -17,8 +17,8 @@ function LoginInner() {
   const loadDemo = useStore((s) => s.loadDemo);
   const loadDemoClient = useStore((s) => s.loadDemoClient);
   const onboardingComplete = useStore((s) => s.onboardingComplete);
-  const [email, setEmail] = React.useState("gestor360@aksenterprise.com.br");
-  const [password, setPassword] = React.useState("demo1234");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
 
   React.useEffect(() => {
     if (params.get("demo") === "1") {

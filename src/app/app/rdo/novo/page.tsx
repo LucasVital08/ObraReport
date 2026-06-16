@@ -81,9 +81,14 @@ function NovoRdoInner() {
   function save() {
     if (!draft || saving) return; // trava contra toque duplo (evita RDO duplicado)
     setSaving(true);
-    const id = addReport(draft);
-    clearProgress();
-    router.push(`/app/rdo/${id}`);
+    try {
+      const id = addReport(draft);
+      clearProgress();
+      router.push(`/app/rdo/${id}`);
+    } catch {
+      setSaving(false); // não trava o botão se algo falhar ao salvar
+      show("Não foi possível salvar agora. Tente novamente.");
+    }
   }
 
   // ---- Tela cheia imersiva de criação ----
@@ -345,8 +350,16 @@ function ImmersiveCreator({ projectId, projectName, supervisor, answers, setAnsw
 }
 
 function extractTime(s: string): string | undefined {
-  const m = s.match(/(\d{1,2})\s*(?:h|horas|:)\s*(\d{0,2})/i);
-  if (!m) return undefined;
+  // Aceita "07:30", "7h30", "7 30", "às 7", "730".
+  let m = s.match(/(\d{1,2})\s*(?:h|horas|:)\s*(\d{0,2})/i);
+  if (!m) m = s.match(/\b(\d{1,2})\s+(\d{2})\b/); // "7 30"
+  if (!m) {
+    const d = s.match(/\b(\d{3,4})\b/); // "730" / "1700"
+    if (d) { const v = d[1].padStart(4, "0"); return `${v.slice(0, 2)}:${v.slice(2)}`; }
+    const h = s.match(/\b(\d{1,2})\b/); // "às 7"
+    if (h) return `${h[1].padStart(2, "0")}:00`;
+    return undefined;
+  }
   return `${m[1].padStart(2, "0")}:${(m[2] || "00").padStart(2, "0")}`;
 }
 
