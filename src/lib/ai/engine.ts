@@ -279,25 +279,19 @@ export function organizeRdoText(text: string): AiRdoResult {
   const equipment = extractByWords(text, EQUIPMENT_WORDS);
   const expenses = parseExpenses(text);
 
-  // Resumo executivo: 1-2 frases sintetizadas a partir do que foi detectado.
+  // Resumo executivo: síntese profissional do dia (sem copiar as frases cruas).
   const summaryParts: string[] = [];
   if (activities.length) {
     summaryParts.push(
-      `Equipe executou ${activities.length} frente(s) de trabalho, incluindo ${activities
-        .slice(0, 2)
-        .map((a) => a.toLowerCase())
-        .join(" e ")}.`,
+      `Durante a jornada, a equipe deu andamento a ${activities.length} frente(s) de serviço da obra, conforme detalhado nas atividades executadas.`,
     );
+  } else {
+    summaryParts.push("Jornada de trabalho registrada na obra.");
   }
-  if (occurrences.length) {
-    summaryParts.push(`Foram registradas ${occurrences.length} ocorrência(s).`);
-  }
-  if (pending.length) {
-    summaryParts.push(`${pending.length} pendência(s) para o próximo dia.`);
-  }
-  const executiveSummary =
-    summaryParts.join(" ") ||
-    "Dia de trabalho registrado. Revise as informações e complemente os campos faltantes.";
+  if (occurrences.length) summaryParts.push(`Foram registradas ${occurrences.length} ocorrência(s) operacional(is) no período.`);
+  else summaryParts.push("Não houve ocorrências relevantes a registrar.");
+  if (pending.length) summaryParts.push(`Restaram ${pending.length} item(ns) pendente(s) para a continuidade dos trabalhos.`);
+  const executiveSummary = summaryParts.join(" ");
 
   // Detecção de campos faltantes essenciais.
   const missing: string[] = [];

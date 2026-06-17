@@ -118,15 +118,15 @@ export default function ObraDetailPage() {
                 <p className="text-white text-lg font-bold leading-tight">{PROJECT_STATUS_LABELS[project.status]}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               {isClient ? (
                 <Badge className="bg-white/90 text-graphite">{PROJECT_STATUS_LABELS[project.status]}</Badge>
               ) : (
                 <>
-                  <Button onClick={openEdit} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><Pencil size={15} /> Editar</Button>
-                  <Button onClick={() => router.push(`/app/acessos?obra=${project.id}`)} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><UserPlus size={15} /> Membros</Button>
-                  {isManager && <Button onClick={handleDelete} className="bg-white/20 text-white border-0 hover:bg-danger hover:text-white shadow-none"><Trash2 size={15} /> Excluir</Button>}
-                  <div className="relative w-48">
+                  <Button size="sm" onClick={openEdit} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><Pencil size={15} /> Editar</Button>
+                  <Button size="sm" onClick={() => router.push(`/app/acessos?obra=${project.id}`)} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><UserPlus size={15} /> Membros</Button>
+                  {isManager && <Button size="sm" onClick={handleDelete} className="bg-white/20 text-white border-0 hover:bg-danger hover:text-white shadow-none"><Trash2 size={15} /> Excluir</Button>}
+                  <div className="relative w-full sm:w-48">
                     <Select value={project.status} onChange={(e) => updateProject(project.id, { status: e.target.value as ProjectStatus })}
                       className="rounded-full bg-white/95 text-graphite border-0 shadow-sm font-semibold h-9 pr-9 text-sm">
                       {Object.entries(PROJECT_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -359,7 +359,8 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
 }
 
 function RdoList({ reports, showCreate, projectId }: { reports: ReturnType<typeof useStore.getState>["reports"]; showCreate?: boolean; projectId?: string }) {
-  const sorted = [...reports].sort((a, b) => b.date.localeCompare(a.date));
+  // Ordem cronológica: pelo número do RDO (1, 2, 3, 4…), data como desempate.
+  const sorted = [...reports].sort((a, b) => (a.number - b.number) || a.date.localeCompare(b.date));
   return (
     <Card>
       <CardHeader title="Diários de obra (RDO)" icon={<FileText size={18} />}

@@ -38,6 +38,13 @@ export default function AcessosPage() {
   const [creating, setCreating] = React.useState(false);
   const [copiedId, setCopiedId] = React.useState<string>("");
 
+  const [backendMissing, setBackendMissing] = React.useState(false);
+  const isBackendErr = (e: unknown) => /schema cache|could not find the table|does not exist|relation .* does not exist/i.test((e as Error)?.message || "");
+  const friendlyErr = (e: unknown) =>
+    isBackendErr(e)
+      ? "Recurso ainda não ativado no backend. Rode a migração de convites (0002) no Supabase — SQL Editor."
+      : (e as Error)?.message || "Ocorreu um erro.";
+
   React.useEffect(() => {
     if (!canLoad) return;
     let active = true;
@@ -46,7 +53,9 @@ export default function AcessosPage() {
         const [m, i] = await Promise.all([listMembers(), listInvites()]);
         if (active) { setMembers(m); setInvites(i); }
       } catch (e) {
-        if (active) show((e as Error).message || "Erro ao carregar acessos.");
+        if (!active) return;
+        if (isBackendErr(e)) setBackendMissing(true);
+        else show((e as Error).message || "Erro ao carregar acessos.");
       } finally {
         if (active) setLoading(false);
       }
@@ -78,7 +87,7 @@ export default function AcessosPage() {
       await copy(inv.link, inv.id);
       show("Convite criado e link copiado!");
     } catch (e) {
-      show((e as Error).message || "Não foi possível criar o convite.");
+      show(friendlyErr(e));
     } finally {
       setCreating(false);
     }
@@ -90,7 +99,7 @@ export default function AcessosPage() {
       setInvites((prev) => prev.map((i) => (i.id === id ? { ...i, status: "revoked" } : i)));
       show("Convite revogado.");
     } catch (e) {
-      show((e as Error).message || "Erro ao revogar.");
+      show(friendlyErr(e));
     }
   }
 
@@ -100,7 +109,7 @@ export default function AcessosPage() {
       setMembers((prev) => prev.map((x) => (x.id === m.id ? { ...x, role: newRole } : x)));
       show("Papel atualizado.");
     } catch (e) {
-      show((e as Error).message || "Erro ao atualizar papel.");
+      show(friendlyErr(e));
     }
   }
 
@@ -111,7 +120,7 @@ export default function AcessosPage() {
       setMembers((prev) => prev.filter((x) => x.id !== m.id));
       show("Membro removido da empresa.");
     } catch (e) {
-      show((e as Error).message || "Erro ao remover membro.");
+      show(friendlyErr(e));
     }
   }
 
@@ -155,6 +164,20 @@ export default function AcessosPage() {
     <div>
       {node}
       <PageHeader title="Equipe & acessos" description="Convide membros da equipe e contratantes para a sua empresa" />
+
+      {backendMissing && (
+        <Card className="p-4 mb-5 flex items-start gap-3 bg-warning-soft border-warning/30">
+          <ShieldAlert className="text-warning shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="font-medium">Falta ativar os convites no banco</p>
+            <p className="text-sm text-muted mt-1">
+              O backend ainda não tem a tabela de convites. No Supabase → <strong>SQL Editor</strong>, rode a migração
+              <code className="mx-1 px-1 rounded bg-black/5">supabase/migrations/0002_invites.sql</code>
+              (e também a <code className="px-1 rounded bg-black/5">0003</code> e <code className="px-1 rounded bg-black/5">0004</code>). Depois recarregue esta página.
+            </p>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Convidar */}
