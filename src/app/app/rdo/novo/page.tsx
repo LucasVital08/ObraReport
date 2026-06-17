@@ -28,10 +28,10 @@ type Stage = "intro" | "creating" | "review";
 // redundância. Todas as respostas vão para a IA (prompt consolidado) montar o
 // relatório. A ordem segue o raciocínio natural do dia de obra.
 const QUESTIONS = [
+  { key: "atividades", q: "O que foi executado hoje? Detalhe os serviços e o avanço de cada um.", hint: "Diga cada serviço e se ficou concluído, parcial ou não saiu. (Essencial)" },
   { key: "clima", q: "Como estava o tempo e a condição do canteiro hoje?", hint: "Ex.: sol de manhã, chuva à tarde que parou o serviço externo; canteiro organizado." },
   { key: "equipe", q: "Quem trabalhou hoje e em quais funções?", hint: "Nomes e funções. Ex.: João (pedreiro), Carlos (servente)." },
   { key: "horarios", q: "Qual foi o horário de início e de término do trabalho?", hint: "Ex.: das 7h30 às 17h." },
-  { key: "atividades", q: "O que foi executado hoje? Detalhe os serviços e o avanço de cada um.", hint: "Diga cada serviço e se ficou concluído, parcial ou não saiu." },
   { key: "materiais", q: "Quais materiais e equipamentos foram usados? Faltou algum?", hint: "Ex.: 10 sacos de cimento, betoneira; faltou areia." },
   { key: "ocorrencias", q: "Houve problema, atraso, impedimento ou questão de segurança?", hint: "Atrasos, falta de material/energia, acidentes, riscos, EPI. Se não houve, diga \"não\"." },
   { key: "solicitacoes", q: "Houve solicitação, decisão ou cobrança do contratante/fiscalização?", hint: "Pedidos, aprovações ou observações do cliente. Se não, diga \"não\"." },
@@ -281,8 +281,11 @@ function ImmersiveCreator({ projectId, projectName, supervisor, teamNames, answe
   async function goNext() {
     const next = await captureCurrent();
     setAnswers(next);
+    // Após a 1ª pergunta ("o que foi executado") vai direto para as fotos —
+    // os 2 itens essenciais que podem ser delegados ao funcionário da obra.
+    if (idx === 0) { setShowPhotos(true); return; }
     if (idx < total - 1) setIdx(idx + 1);
-    else setShowPhotos(true); // última pergunta → passo de fotos
+    else finish(next);
   }
 
   // Anexa fotos DURANTE a criação (vão direto para o RDO/PDF).
@@ -359,7 +362,7 @@ function ImmersiveCreator({ projectId, projectName, supervisor, teamNames, answe
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto w-full px-5 py-8 animate-fade-up">
             <h1 className="text-2xl font-extrabold leading-tight">Anexe as fotos da obra</h1>
-            <p className="text-muted mt-2">Registre o antes, durante e depois. As fotos entram direto no RDO e no PDF.</p>
+            <p className="text-muted mt-2">Registre o que foi feito hoje. As fotos entram direto no RDO e no PDF. Você pode <strong>gerar o RDO agora</strong> (a IA completa o resto) ou continuar preenchendo os outros detalhes.</p>
 
             <div className="mt-6 flex gap-2 flex-wrap">
               <Button variant="outline" disabled={uploadingPhoto} onClick={() => galleryRef.current?.click()}><ImagePlus size={16} /> {uploadingPhoto ? "Enviando…" : "Galeria / arquivos"}</Button>
@@ -385,8 +388,11 @@ function ImmersiveCreator({ projectId, projectName, supervisor, teamNames, answe
         </div>
         <div className="shrink-0 border-t border-border bg-surface">
           <div className="max-w-2xl mx-auto w-full px-5 py-3 flex items-center justify-between gap-2">
-            <Button variant="ghost" onClick={() => setShowPhotos(false)}><ArrowLeft size={16} /> Perguntas</Button>
-            <Button size="lg" disabled={uploadingPhoto} onClick={() => finish()}><Sparkles size={18} /> Gerar RDO</Button>
+            <Button variant="ghost" onClick={() => setShowPhotos(false)}><ArrowLeft size={16} /> Voltar</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" disabled={uploadingPhoto} onClick={() => { setShowPhotos(false); setIdx(1); }}>Continuar <ArrowRight size={16} /></Button>
+              <Button disabled={uploadingPhoto} onClick={() => finish()}><Sparkles size={16} /> Gerar RDO</Button>
+            </div>
           </div>
         </div>
       </div>

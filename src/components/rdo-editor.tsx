@@ -48,6 +48,8 @@ export function RdoEditor({ draft, onChange, teamSuggestions = [] }: Props) {
             <Field label="Clima">
               <Select value={draft.weather} onChange={(e) => onChange({ weather: e.target.value })}>
                 <option value="">Selecione…</option>
+                {/* Mostra o valor vindo da IA mesmo que não esteja na lista padrão. */}
+                {draft.weather && !WEATHER.includes(draft.weather) && <option value={draft.weather}>{draft.weather}</option>}
                 {WEATHER.map((w) => <option key={w} value={w}>{w}</option>)}
               </Select>
             </Field>
