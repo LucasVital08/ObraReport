@@ -33,6 +33,32 @@ export interface User {
 
 export type PlanId = "free" | "basico" | "profissional" | "empresa";
 
+// ===== Multi-empresa (em desenvolvimento na branch claude/multi-empresa) =====
+// Um perfil pode pertencer a VÁRIAS empresas (memberships). As obras pertencem a
+// empresas. O acesso a uma obra vem de: (a) ser membro interno da empresa
+// (vê/edita todas as obras) OU (b) ter acesso à obra específica (project_member),
+// como "view" (acompanha) ou "edit" (edita/cria RDO só naquela obra).
+export type CompanyRole = "owner" | "admin" | "supervisor" | "member";
+export type ProjectPermission = "view" | "edit";
+
+export interface Membership {
+  id: ID;
+  userId: ID;
+  companyId: ID;
+  companyName?: string;
+  role: CompanyRole;
+  createdAt: string;
+}
+
+export interface ProjectMember {
+  id: ID;
+  companyId: ID;
+  projectId: ID;
+  userId: ID;
+  permission: ProjectPermission;
+  createdAt: string;
+}
+
 // Visibilidade do RDO para o contratante (papel "client"). Cada flag = a seção
 // é COMPARTILHADA com o contratante. O time interno sempre vê tudo. O padrão
 // (DEFAULT_CLIENT_VISIBILITY em src/lib/visibility.ts) esconde o que é sensível.
