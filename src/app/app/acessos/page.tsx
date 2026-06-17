@@ -30,8 +30,11 @@ export default function AcessosPage() {
 
   // formulário de convite
   const [email, setEmail] = React.useState("");
-  const [role, setRole] = React.useState<Role>("member");
-  const [projIds, setProjIds] = React.useState<string[]>([]);
+  // Quando vier de uma obra (botão "Membros" → ?obra=ID), já pré-seleciona a
+  // obra e sugere convidar como acesso àquela obra específica.
+  const obraParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("obra") : null;
+  const [role, setRole] = React.useState<Role>(obraParam ? "client" : "member");
+  const [projIds, setProjIds] = React.useState<string[]>(obraParam ? [obraParam] : []);
   const [creating, setCreating] = React.useState(false);
   const [copiedId, setCopiedId] = React.useState<string>("");
 

@@ -20,7 +20,7 @@ import { PROJECT_STATUS_LABELS, type ProjectStatus, type ProjectDocument } from 
 import {
   Building2, Plus, FileText, MapPin, User, Calendar, Wallet, Camera,
   AlertTriangle, ListChecks, FileCheck2, Clock, Eye, Download, Trash2, ShieldCheck,
-  Pencil, ChevronDown,
+  Pencil, ChevronDown, UserPlus,
 } from "lucide-react";
 
 export default function ObraDetailPage() {
@@ -124,6 +124,7 @@ export default function ObraDetailPage() {
               ) : (
                 <>
                   <Button onClick={openEdit} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><Pencil size={15} /> Editar</Button>
+                  <Button onClick={() => router.push(`/app/acessos?obra=${project.id}`)} className="bg-white/20 text-white border-0 hover:bg-white/30 shadow-none"><UserPlus size={15} /> Membros</Button>
                   {isManager && <Button onClick={handleDelete} className="bg-white/20 text-white border-0 hover:bg-danger hover:text-white shadow-none"><Trash2 size={15} /> Excluir</Button>}
                   <div className="relative w-48">
                     <Select value={project.status} onChange={(e) => updateProject(project.id, { status: e.target.value as ProjectStatus })}
