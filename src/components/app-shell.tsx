@@ -70,24 +70,6 @@ const BOTTOM_NAV = [
   { href: "__more__", label: "Mais", icon: Menu },
 ];
 
-// Navegação reduzida do contratante (papel "client"): acompanha as obras,
-// sem acesso aos módulos operacionais internos nem à criação de RDOs.
-const CLIENT_NAV: { group: string; items: NavItem[] }[] = [
-  {
-    group: "Acompanhamento",
-    items: [
-      { href: "/app", label: "Painel", icon: LayoutDashboard },
-      { href: "/app/obras", label: "Minhas obras", icon: Building2 },
-    ],
-  },
-];
-
-const CLIENT_BOTTOM_NAV = [
-  { href: "/app", label: "Início", icon: LayoutDashboard },
-  { href: "/app/obras", label: "Obras", icon: Building2 },
-  { href: "__more__", label: "Mais", icon: Menu },
-];
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -137,9 +119,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const isClient = user.role === "client";
-  const nav = isClient ? CLIENT_NAV : NAV;
-  const bottomNav = isClient ? CLIENT_BOTTOM_NAV : BOTTOM_NAV;
+  // O app é sempre completo: a restrição de "não editar" é por obra (contratante),
+  // nunca um corte global de navegação. Todos têm acesso a todos os módulos.
+  const nav = NAV;
+  const bottomNav = BOTTOM_NAV;
 
   const isActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
@@ -179,14 +162,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
-        {!isClient && (
-          <div className="p-3 border-t border-border">
-            <Link href="/app/rdo/novo"
-              className="flex items-center justify-center gap-2 rounded-xl bg-brand text-white py-2.5 text-sm font-semibold hover:bg-brand-dark transition-colors">
-              <Sparkles size={16} /> Criar RDO com IA
-            </Link>
-          </div>
-        )}
+        <div className="p-3 border-t border-border">
+          <Link href="/app/rdo/novo"
+            className="flex items-center justify-center gap-2 rounded-xl bg-brand text-white py-2.5 text-sm font-semibold hover:bg-brand-dark transition-colors">
+            <Sparkles size={16} /> Criar RDO com IA
+          </Link>
+        </div>
       </aside>
 
       {/* Main column */}
@@ -223,7 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Bottom nav mobile */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-surface/95 backdrop-blur">
-        <div className={cn("grid items-end h-16 px-1", isClient ? "grid-cols-3" : "grid-cols-5")}>
+        <div className="grid items-end h-16 px-1 grid-cols-5">
           {bottomNav.map((item) => {
             const Icon = item.icon;
             if (item.href === "__rdo__") {

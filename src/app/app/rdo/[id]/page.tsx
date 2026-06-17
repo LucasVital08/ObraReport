@@ -12,6 +12,7 @@ import { Avatar } from "@/components/brand";
 import { evaluateCompleteness } from "@/lib/ai/engine";
 import { generateRdoPdf, embedReportImages } from "@/lib/pdf";
 import { getClientVisibility, CLIENT_VISIBILITY_SECTIONS } from "@/lib/visibility";
+import { isWatchedProject } from "@/lib/permissions";
 import { formatBRL, formatDateBR, uid, nowISO } from "@/lib/utils";
 import { RDO_STATUS_LABELS, ROLE_LABELS, type RdoStatus, type Signature, type DailyReport } from "@/lib/types";
 import {
@@ -30,7 +31,7 @@ export default function RdoViewPage() {
   const team = useStore((s) => s.team);
   const updateReport = useStore((s) => s.updateReport);
   const deleteReport = useStore((s) => s.deleteReport);
-  const isClient = useStore((s) => s.user.role === "client");
+  const clientProjectIds = useStore((s) => s.user.clientProjectIds);
 
   const [editing, setEditing] = React.useState(false);
   const [signOpen, setSignOpen] = React.useState(false);
@@ -44,21 +45,24 @@ export default function RdoViewPage() {
     return <EmptyState title="RDO não encontrado" description="Este relatório pode ter sido removido." action={<Button onClick={() => router.push("/app")}>Voltar ao início</Button>} />;
   }
   const project = projects.find((p) => p.id === report.projectId);
+  // Somente acompanhamento quando este RDO pertence a uma obra que o usuário
+  // apenas acompanha como contratante. Nas obras próprias ele edita normalmente.
+  const viewOnly = isWatchedProject({ clientProjectIds }, report.projectId);
   const teamNames = team.filter((t) => t.projectId === report.projectId || !t.projectId).map((t) => t.name);
   const completeness = evaluateCompleteness(report);
 
   // Política de visibilidade do contratante. Para o time interno, vis não filtra
   // (vê tudo). Para o contratante, esconde as seções sensíveis.
   const vis = getClientVisibility(company);
-  const showOcc = !isClient || vis.ocorrencias;
-  const showPending = !isClient || vis.pendencias;
+  const showOcc = !viewOnly || vis.ocorrencias;
+  const showPending = !viewOnly || vis.pendencias;
   const occLines = showOcc ? [...report.occurrences, ...report.impediments] : [];
   const pendingLines = showPending ? report.pending : [];
   const hiddenLabels = CLIENT_VISIBILITY_SECTIONS.filter((s) => !vis[s.key]).map((s) => s.label);
 
   // PDF: versão do contratante (filtrada) quando for o cliente ou ao compartilhar.
   // Baixa as fotos do Storage para base64 antes (jsPDF não embute URL remota).
-  async function downloadPdf(forClient = isClient) {
+  async function downloadPdf(forClient = viewOnly) {
     if (!project) return;
     show("Gerando PDF…");
     const reportForPdf = await embedReportImages(report!);
@@ -109,7 +113,7 @@ export default function RdoViewPage() {
         backHref={project ? `/app/obras/${project.id}` : "/app"}
         action={
           <div className="flex gap-2 flex-wrap">
-            {isClient ? (
+            {viewOnly ? (
               <Button variant="outline" size="sm" onClick={() => { setSignLocked(true); setSignOpen(true); }} disabled={report.status === "aprovado"}>
                 <ShieldCheck size={15} /> {report.status === "aprovado" ? "Aprovado" : "Aprovar / assinar"}
               </Button>
@@ -120,7 +124,7 @@ export default function RdoViewPage() {
                 <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}><Share2 size={15} /> Compartilhar</Button>
               </>
             )}
-            <Button size="sm" onClick={() => (isClient ? downloadPdf() : setPdfChoiceOpen(true))}><FileDown size={15} /> PDF</Button>
+            <Button size="sm" onClick={() => (viewOnly ? downloadPdf() : setPdfChoiceOpen(true))}><FileDown size={15} /> PDF</Button>
           </div>
         }
       />
@@ -132,7 +136,7 @@ export default function RdoViewPage() {
           <Badge tone="neutral">Modo: {report.createMode}</Badge>
           <span className="text-sm text-muted">{report.arrival || "—"} às {report.departure || "—"}</span>
         </div>
-        {!isClient && (
+        {!viewOnly && (
           <Select value={report.status} onChange={(e) => updateReport(report.id, { status: e.target.value as RdoStatus })} className="w-48">
             {Object.entries(RDO_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </Select>
@@ -141,7 +145,7 @@ export default function RdoViewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
-          {report.rawInput && !isClient && (
+          {report.rawInput && !viewOnly && (
             <Card className="p-4 bg-brand-soft border-brand/20">
               <p className="text-xs font-semibold uppercase tracking-wide text-brand-dark flex items-center gap-1.5 mb-1"><Sparkles size={12} /> Relato original (voz/texto)</p>
               <p className="text-sm text-foreground/80 italic">“{report.rawInput}”</p>
@@ -153,7 +157,7 @@ export default function RdoViewPage() {
             <div className="p-4 text-sm">{report.executiveSummary || <span className="text-muted">Sem resumo.</span>}</div>
           </Card>
 
-          {(!isClient || vis.equipe) && (
+          {(!viewOnly || vis.equipe) && (
             <Card>
               <CardHeader title="Equipe presente" icon={<Users size={18} />} />
               <div className="p-4 flex flex-wrap gap-2">
@@ -202,7 +206,7 @@ export default function RdoViewPage() {
 
           <MediaGallery media={report.media} />
 
-          {report.expenses.length > 0 && (!isClient || vis.gastos) && (
+          {report.expenses.length > 0 && (!viewOnly || vis.gastos) && (
             <Card>
               <CardHeader title="Gastos do dia" icon={<Wallet size={18} />} />
               <div className="divide-y divide-border">
@@ -255,13 +259,13 @@ export default function RdoViewPage() {
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full" onClick={() => { setSignLocked(isClient); setSignOpen(true); }}>
-                <PenLine size={15} /> {isClient ? "Aprovar / assinar" : "Adicionar assinatura"}
+              <Button variant="outline" className="w-full" onClick={() => { setSignLocked(viewOnly); setSignOpen(true); }}>
+                <PenLine size={15} /> {viewOnly ? "Aprovar / assinar" : "Adicionar assinatura"}
               </Button>
             </div>
           </Card>
 
-          {!isClient && (
+          {!viewOnly && (
             <Button variant="ghost" className="w-full text-danger" onClick={() => { if (confirm("Excluir este RDO?")) { deleteReport(report.id); router.push("/app"); } }}>
               Excluir RDO
             </Button>

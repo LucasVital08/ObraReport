@@ -14,6 +14,7 @@ import { Avatar } from "@/components/brand";
 import { Timeline } from "@/components/timeline";
 import { ProjectFormFields, projectToForm, formToProject, type ProjectFormState } from "@/components/project-form";
 import { buildFinalReport } from "@/lib/ai/engine";
+import { isWatchedProject } from "@/lib/permissions";
 import { uploadFile } from "@/lib/data/storage";
 import { formatBRL, formatDateBR, diffDays } from "@/lib/utils";
 import { PROJECT_STATUS_LABELS, type ProjectStatus, type ProjectDocument } from "@/lib/types";
@@ -42,7 +43,11 @@ export default function ObraDetailPage() {
   const allChecklists = useStore((s) => s.checklists);
   const allIncidents = useStore((s) => s.incidents);
   const allDocuments = useStore((s) => s.documents);
-  const isClient = useStore((s) => s.user.role === "client");
+  // Somente acompanhamento: o usuário entra nesta obra como contratante (consta
+  // em clientProjectIds). Não é um corte global — as obras próprias dele seguem
+  // totalmente editáveis. isManager controla a exclusão (dono/admin).
+  const clientProjectIds = useStore((s) => s.user.clientProjectIds);
+  const viewOnly = isWatchedProject({ clientProjectIds }, id);
   const isManager = useStore((s) => s.user.role === "owner" || s.user.role === "admin");
   const { show, node } = useToast();
   const [tab, setTab] = React.useState("visao");
@@ -96,14 +101,14 @@ export default function ObraDetailPage() {
     { id: "final", label: "Relatório final" },
   ];
   const clientTabIds = ["visao", "rdos", "timeline", "fotos", "ocorrencias", "final"];
-  const tabs = isClient ? allTabs.filter((t) => clientTabIds.includes(t.id)) : allTabs;
+  const tabs = viewOnly ? allTabs.filter((t) => clientTabIds.includes(t.id)) : allTabs;
   let timelineItems: { date: string; resumo: string }[] = [];
   try { timelineItems = buildFinalReport(project, reports).linha_do_tempo; } catch { timelineItems = []; }
 
   return (
     <div>
       <PageHeader title={project.name} description={`${project.client}`} backHref="/app/obras"
-        action={isClient ? undefined : <Link href={`/app/rdo/novo?obra=${project.id}`}><Button><Plus size={16} /> Criar RDO</Button></Link>} />
+        action={viewOnly ? undefined : <Link href={`/app/rdo/novo?obra=${project.id}`}><Button><Plus size={16} /> Criar RDO</Button></Link>} />
 
       {node}
       {/* Header card */}
@@ -119,7 +124,7 @@ export default function ObraDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
-              {isClient ? (
+              {viewOnly ? (
                 <Badge className="bg-white/90 text-graphite">{PROJECT_STATUS_LABELS[project.status]}</Badge>
               ) : (
                 <>
@@ -177,7 +182,7 @@ export default function ObraDetailPage() {
             <Stat label="Tarefas abertas" value={tasks.filter((t) => !["concluido", "cancelado"].includes(t.status)).length} icon={<ListChecks size={16} />} tone="warning" />
             <Stat label="Ocorrências abertas" value={incidents.filter((i) => i.status !== "resolvida").length} icon={<AlertTriangle size={16} />} tone="danger" />
           </div>
-          {isClient ? (
+          {viewOnly ? (
             <Card className="p-5 bg-gradient-to-r from-brand to-brand-dark text-white border-0">
               <div className="flex items-center gap-4 flex-wrap">
                 <ShieldCheck size={28} />
@@ -204,7 +209,7 @@ export default function ObraDetailPage() {
               </div>
             </Card>
           )}
-          {!isClient && (
+          {!viewOnly && (
             <Card className="p-4 flex items-start gap-3">
               <span className="text-brand mt-0.5"><ShieldCheck size={18} /></span>
               <div className="text-sm">
@@ -217,7 +222,7 @@ export default function ObraDetailPage() {
         </div>
       )}
 
-      {tab === "rdos" && <RdoList reports={reports} showCreate={!isClient} projectId={project.id} />}
+      {tab === "rdos" && <RdoList reports={reports} showCreate={!viewOnly} projectId={project.id} />}
 
       {tab === "timeline" && (
         <Card>

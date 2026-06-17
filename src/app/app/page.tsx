@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
+import { isWatchedProject } from "@/lib/permissions";
 import { Card, CardHeader, Stat, Button, EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/brand";
 import { ProjectStatusBadge, RdoStatusBadge } from "@/components/status";
@@ -41,78 +42,12 @@ export default function DashboardPage() {
   const recentReports = [...reports].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5);
   const firstName = user.name.split(" ")[0];
 
-  // ---- Painel do contratante (papel "client") ----
-  if (user.role === "client") {
-    const myProjects = projects.filter((p) => !user.clientProjectIds || user.clientProjectIds.includes(p.id));
-    const myReports = reports.filter((r) => myProjects.some((p) => p.id === r.projectId));
-    const awaiting = myReports.filter((r) => r.status !== "aprovado")
-      .sort((a, b) => b.date.localeCompare(a.date));
-    const myPhotos = myReports.reduce((a, r) => a + r.media.filter((m) => m.kind === "photo").length, 0);
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Olá, {firstName} 👋</h1>
-          <p className="text-muted">Acompanhe o andamento das suas obras e aprove os relatórios.</p>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Stat href="/app/obras" label="Minhas obras" value={myProjects.length} icon={<Building2 size={16} />} tone="brand" />
-          <Stat href="/app/obras" label="RDOs recebidos" value={myReports.length} icon={<FileText size={16} />} tone="info" />
-          <Stat href="/app/obras" label="Aguardando aprovação" value={awaiting.length} icon={<PenLine size={16} />} tone="warning" />
-          <Stat href="/app/obras" label="Fotos da obra" value={myPhotos} icon={<Images size={16} />} tone="success" />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2 space-y-5">
-            <Card>
-              <CardHeader title="Minhas obras" icon={<Building2 size={18} />}
-                action={<Link href="/app/obras"><Button variant="ghost" size="sm">Ver todas</Button></Link>} />
-              <div className="divide-y divide-border">
-                {myProjects.length === 0 ? (
-                  <EmptyState icon={<Building2 size={32} />} title="Nenhuma obra vinculada" description="Você ainda não acompanha nenhuma obra." />
-                ) : myProjects.map((p) => {
-                  const count = reports.filter((r) => r.projectId === p.id).length;
-                  return (
-                    <Link key={p.id} href={`/app/obras/${p.id}`} className="flex items-center gap-3 p-4 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                      <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: p.coverColor }}>
-                        <Building2 size={18} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{p.name}</p>
-                        <p className="text-sm text-muted truncate">{count} RDOs</p>
-                      </div>
-                      <ProjectStatusBadge status={p.status} />
-                    </Link>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader title="RDOs aguardando sua aprovação" icon={<PenLine size={18} />} />
-            <div className="divide-y divide-border">
-              {awaiting.length === 0 ? (
-                <EmptyState title="Tudo em dia" description="Não há RDOs pendentes de aprovação." />
-              ) : awaiting.slice(0, 8).map((r) => {
-                const proj = projects.find((p) => p.id === r.projectId);
-                return (
-                  <Link key={r.id} href={`/app/rdo/${r.id}`} className="flex items-start gap-3 p-3.5 hover:bg-black/5 dark:hover:bg-white/5">
-                    <Avatar name={r.responsible} size={32} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">RDO #{r.number} — {proj?.name.split("—")[0]}</p>
-                      <p className="text-xs text-muted">{formatDateBR(r.date)} • {r.responsible}</p>
-                      <div className="mt-1"><RdoStatusBadge status={r.status} /></div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  // Obras em que o usuário entra como contratante (somente acompanhamento) e os
+  // RDOs delas que aguardam sua aprovação — mostrado dentro do dashboard completo.
+  const watchedProjects = projects.filter((p) => isWatchedProject(user, p.id));
+  const awaitingApproval = reports
+    .filter((r) => r.status !== "aprovado" && watchedProjects.some((p) => p.id === r.projectId))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   // Série dos últimos 14 dias para o gráfico de atividade de RDOs.
   const days14 = (() => {
@@ -156,6 +91,29 @@ export default function DashboardPage() {
         <Stat href="/app/ponto" label="Presentes hoje" value={presentToday} icon={<Users size={16} />} tone="info" />
         <Stat href="/app/fotos" label="Fotos / Vídeos" value={`${totalPhotos} / ${totalVideos}`} icon={<Images size={16} />} tone="brand" />
       </div>
+
+      {/* Obras que você acompanha como contratante: RDOs aguardando aprovação */}
+      {watchedProjects.length > 0 && awaitingApproval.length > 0 && (
+        <Card>
+          <CardHeader title="RDOs aguardando sua aprovação" icon={<PenLine size={18} />}
+            subtitle={`${awaitingApproval.length} RDO(s) em obras que você acompanha`} />
+          <div className="divide-y divide-border">
+            {awaitingApproval.slice(0, 6).map((r) => {
+              const proj = projects.find((p) => p.id === r.projectId);
+              return (
+                <Link key={r.id} href={`/app/rdo/${r.id}`} className="flex items-start gap-3 p-3.5 hover:bg-black/5 dark:hover:bg-white/5">
+                  <Avatar name={r.responsible} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">RDO #{r.number} — {proj?.name.split("—")[0]}</p>
+                    <p className="text-xs text-muted">{formatDateBR(r.date)} • {r.responsible}</p>
+                    <div className="mt-1"><RdoStatusBadge status={r.status} /></div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Acompanhamento das obras: gráfico de atividade + painel por obra */}
       {projects.length > 0 && (
