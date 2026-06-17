@@ -40,19 +40,19 @@ const QUESTIONS = [
   { key: "observacoes", q: "Mais alguma observação técnica importante para registrar?", hint: "Visitas, detalhes técnicos, algo a destacar. Se não, diga \"não\"." },
 ];
 
-// Sugestões rápidas por pergunta: o usuário toca e o item já entra na resposta,
-// sem precisar digitar. O campo de texto/voz continua para o que for diferente.
+// Atalhos OPCIONAIS por pergunta: só um núcleo do que mais se repete, para não
+// poluir. O jeito principal é digitar ou falar — os chips são um empurrãozinho.
 const QUESTION_CHIPS: Record<string, string[]> = {
-  clima: ["Ensolarado", "Parcialmente nublado", "Nublado", "Chuva", "Chuva forte", "Garoa", "Calor intenso", "Vento forte", "Canteiro organizado", "Sem interferência climática"],
-  equipe: ["Encarregado", "Pedreiro", "Servente", "Ajudante", "Eletricista", "Encanador", "Pintor", "Soldador", "Montador", "Carpinteiro", "Armador", "Supervisor"],
-  horarios: ["Das 7h às 17h", "Das 7h30 às 17h", "Das 8h às 18h", "Das 8h às 17h", "Das 22h às 3h (noturno)"],
-  atividades: ["Alvenaria", "Reboco/emboço", "Concretagem", "Forma e armação", "Instalação elétrica", "Instalação hidráulica", "Assentamento de piso", "Pintura", "Drywall", "Estrutura metálica", "Impermeabilização", "Demolição/desmontagem", "Limpeza do canteiro"],
-  materiais: ["Cimento", "Areia", "Brita", "Tijolo/bloco", "Argamassa", "Cal", "Vergalhão/aço", "Tubos PVC", "Fios/cabos", "Tinta", "Madeira", "Chapas de drywall", "Parafusos", "Betoneira", "Lixadeira", "Furadeira", "Esmerilhadeira", "Máquina de solda", "Escada", "Andaime", "Plataforma elevatória", "Serra circular", "Martelete"],
-  ocorrencias: ["Sem ocorrências", "Sem acidentes", "EPIs em uso", "Atraso de material", "Falta de energia", "Chuva interrompeu o serviço", "Quebra de equipamento", "Falta de mão de obra", "Acesso difícil", "Retrabalho", "Aguardando liberação"],
-  solicitacoes: ["Sem solicitações", "Cliente pediu alteração", "Aguardando aprovação do cliente", "Fiscalização presente", "Cliente aprovou o serviço"],
-  gastos: ["Sem gastos", "Combustível", "Alimentação", "Material", "Locação de equipamento", "Transporte/frete", "Pedágio/estacionamento"],
-  pendencias: ["Continuar o serviço amanhã", "Aguardar material", "Aguardar liberação", "Sem pendências"],
-  observacoes: ["Sem observações", "Visita técnica realizada", "Registro fotográfico anexado", "Cliente acompanhou o serviço"],
+  clima: ["Ensolarado", "Nublado", "Chuva", "Sem interferência climática"],
+  equipe: ["Pedreiro", "Servente", "Ajudante", "Encarregado"],
+  horarios: ["Das 7h às 17h", "Das 8h às 18h"],
+  atividades: ["Alvenaria", "Concretagem", "Instalação elétrica", "Pintura"],
+  materiais: ["Cimento", "Areia", "Betoneira", "Lixadeira", "Escada", "Andaime"],
+  ocorrencias: ["Sem ocorrências", "Atraso de material", "Chuva interrompeu"],
+  solicitacoes: ["Sem solicitações", "Cliente aprovou o serviço"],
+  gastos: ["Sem gastos", "Combustível", "Alimentação", "Material"],
+  pendencias: ["Continuar amanhã", "Aguardar material", "Sem pendências"],
+  observacoes: ["Sem observações"],
 };
 
 function NovoRdoInner() {
@@ -444,7 +444,7 @@ function ImmersiveCreator({ projectId, projectName, supervisor, teamNames, answe
           {/* Sugestões rápidas: toque e já entra na resposta */}
           {chips.length > 0 && (
             <div className="mt-6">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Toque para adicionar</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Atalhos rápidos — ou digite/fale abaixo</p>
               <div className="flex flex-wrap gap-2">
                 {chips.map((c) => {
                   const active = chipActive(c);
